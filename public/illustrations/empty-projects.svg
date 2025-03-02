@@ -1,0 +1,16 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  {/* Background Circle */}
+  <circle cx="100" cy="100" r="80" fill="#F3F4F6"/>
+  
+  {/* Folder */}
+  <path d="M60 70C60 66.6863 62.6863 64 66 64H94L100 70H134C137.314 70 140 72.6863 140 76V130C140 133.314 137.314 136 134 136H66C62.6863 136 60 133.314 60 130V70Z" fill="#4338CA"/>
+  
+  {/* Person */}
+  <circle cx="90" cy="90" r="12" fill="#312E81"/>
+  <path d="M80 120C80 112.268 86.268 106 94 106H98" stroke="#312E81" stroke-width="4" stroke-linecap="round"/>
+  
+  {/* Document */}
+  <rect x="104" y="96" width="16" height="12" rx="2" stroke="#312E81" stroke-width="2"/>
+  <path d="M108 102H116" stroke="#312E81" stroke-width="2" stroke-linecap="round"/>
+  <path d="M112 98V106" stroke="#312E81" stroke-width="2" stroke-linecap="round"/>
+</svg> 

@@ -1,0 +1,23 @@
+<svg width="600" height="500" viewBox="0 0 600 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="600" height="500" rx="12" fill="#F3F4F6"/>
+  <rect x="40" y="40" width="520" height="420" rx="8" fill="white" stroke="#E5E7EB" stroke-width="2"/>
+  
+  {/* Header */}
+  <rect x="60" y="60" width="480" height="60" rx="6" fill="#F9FAFB"/>
+  <rect x="80" y="80" width="120" height="20" rx="4" fill="#4338CA"/>
+  <rect x="440" y="80" width="80" height="20" rx="4" fill="#E5E7EB"/>
+  
+  {/* Content */}
+  <rect x="80" y="160" width="200" height="24" rx="4" fill="#1F2937"/>
+  <rect x="80" y="200" width="440" height="16" rx="4" fill="#6B7280"/>
+  <rect x="80" y="228" width="440" height="16" rx="4" fill="#6B7280"/>
+  
+  {/* Chart */}
+  <rect x="80" y="280" width="440" height="140" rx="8" fill="#F3F4F6"/>
+  <path d="M100 380 L200 320 L300 360 L400 300 L500 340" stroke="#4338CA" stroke-width="3" fill="none"/>
+  
+  {/* Stats */}
+  <rect x="80" y="400" width="120" height="40" rx="6" fill="#F9FAFB"/>
+  <rect x="220" y="400" width="120" height="40" rx="6" fill="#F9FAFB"/>
+  <rect x="360" y="400" width="120" height="40" rx="6" fill="#F9FAFB"/>
+</svg> 

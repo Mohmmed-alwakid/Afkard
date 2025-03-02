@@ -1,101 +1,85 @@
-import Image from "next/image";
+import { Metadata } from "next";
+import { redirect } from 'next/navigation'
+import { createServerClient } from '@/lib/supabase/server'
 
-export default function Home() {
+import HeroSection from "@/components/landing/hero-section";
+import ServicesSection from "@/components/landing/services-section";
+import SocialProofSection from "@/components/landing/social-proof-section";
+import FeaturesSection from "@/components/landing/features-section";
+import TestimonialSection from "@/components/landing/testimonial-section";
+import MetricsSection from "@/components/landing/metrics-section";
+import CtaSection from "@/components/landing/cta-section";
+import Footer from "@/components/landing/footer";
+
+export const metadata: Metadata = {
+  title: "Afkar - Research Platform for User Testing",
+  description: "Afkar is a comprehensive platform for digital research, user testing, prototype management, and AI-powered analysis",
+};
+
+export default async function HomePage() {
+  try {
+    console.log('HomePage - Creating server client...')
+    const supabase = await createServerClient()
+    
+    console.log('HomePage - Checking session...')
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    
+    if (sessionError) {
+      console.error('Session error:', sessionError)
+      // If there's a session error, show the landing page
+      return renderLandingPage()
+    }
+    
+    console.log('Session exists:', !!session)
+    
+    // If authenticated, redirect to appropriate dashboard
+    if (session?.user) {
+      console.log('User authenticated, checking role...')
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', session.user.id)
+        .single()
+      
+      if (error) {
+        console.error('Error fetching user role:', error)
+        return renderLandingPage()
+      }
+      
+      console.log('User role:', userData?.role)
+      
+      // Only redirect if we successfully got the user role
+      if (userData?.role) {
+        if (userData.role === 'researcher') {
+          console.log('Redirecting to researcher dashboard...')
+          redirect('/researcher')
+        } else {
+          console.log('Redirecting to main dashboard...')
+          redirect('/dashboard')
+        }
+      }
+    }
+
+    console.log('Rendering landing page...')
+    return renderLandingPage()
+  } catch (error) {
+    console.error('Error in HomePage:', error)
+    return renderLandingPage()
+  }
+}
+
+// Helper function to render the landing page
+function renderLandingPage() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+    <div className="flex flex-col min-h-screen">
+      <HeroSection />
+      <SocialProofSection />
+      <ServicesSection />
+      <FeaturesSection />
+      <TestimonialSection />
+      <MetricsSection />
+      <CtaSection />
+      <Footer />
     </div>
-  );
+  )
 }

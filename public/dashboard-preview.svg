@@ -1,0 +1,33 @@
+<svg width="1200" height="600" viewBox="0 0 1200 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="600" rx="12" fill="#F3F4F6"/>
+  <rect x="40" y="40" width="1120" height="520" rx="8" fill="white" stroke="#E5E7EB" stroke-width="2"/>
+  
+  {/* Sidebar */}
+  <rect x="40" y="40" width="240" height="520" rx="0" fill="#F9FAFB"/>
+  <rect x="60" y="60" width="200" height="40" rx="6" fill="#4338CA"/>
+  <rect x="60" y="120" width="200" height="24" rx="4" fill="#6B7280"/>
+  <rect x="60" y="160" width="200" height="24" rx="4" fill="#6B7280"/>
+  <rect x="60" y="200" width="200" height="24" rx="4" fill="#6B7280"/>
+  
+  {/* Main Content */}
+  <rect x="320" y="60" width="800" height="60" rx="8" fill="#F9FAFB"/>
+  <rect x="340" y="80" width="200" height="20" rx="4" fill="#1F2937"/>
+  
+  {/* Cards */}
+  <rect x="320" y="140" width="240" height="120" rx="8" fill="#F9FAFB"/>
+  <rect x="340" y="160" width="120" height="20" rx="4" fill="#4338CA"/>
+  <rect x="340" y="200" width="200" height="40" rx="4" fill="#E5E7EB"/>
+  
+  <rect x="580" y="140" width="240" height="120" rx="8" fill="#F9FAFB"/>
+  <rect x="600" y="160" width="120" height="20" rx="4" fill="#4338CA"/>
+  <rect x="600" y="200" width="200" height="40" rx="4" fill="#E5E7EB"/>
+  
+  <rect x="840" y="140" width="240" height="120" rx="8" fill="#F9FAFB"/>
+  <rect x="860" y="160" width="120" height="20" rx="4" fill="#4338CA"/>
+  <rect x="860" y="200" width="200" height="40" rx="4" fill="#E5E7EB"/>
+  
+  {/* Chart */}
+  <rect x="320" y="280" width="800" height="260" rx="8" fill="#F9FAFB"/>
+  <rect x="340" y="300" width="200" height="24" rx="4" fill="#1F2937"/>
+  <path d="M340 480 L540 400 L740 440 L940 380 L1100 420" stroke="#4338CA" stroke-width="3" fill="none"/>
+</svg> 
