@@ -245,13 +245,23 @@ export const AuthService = {
   async getCurrentSession(isServer = false) {
     try {
       // During static build, return a null session
-      if (process.env.NEXT_PHASE === 'phase-production-build') {
+      if (typeof window === 'undefined' && process.env.NEXT_PHASE === 'phase-production-build') {
         console.warn('Auth session requested during build - returning null session');
         return { data: { session: null } };
       }
       
-      const supabase = isServer ? createServerClient() : createClientComponentClient();
-      return await supabase.auth.getSession();
+      // Use a separate variable to avoid potential stack overflows
+      let supabaseClient;
+      
+      if (isServer) {
+        const { createServerClient } = await import('@/lib/supabase-server');
+        supabaseClient = await createServerClient();
+      } else {
+        const { createClientComponentClient } = await import('@supabase/auth-helpers-nextjs');
+        supabaseClient = createClientComponentClient();
+      }
+      
+      return await supabaseClient.auth.getSession();
     } catch (error) {
       console.error('Error getting current session:', error);
       return { data: { session: null } };

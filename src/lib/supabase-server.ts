@@ -3,7 +3,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { Database } from '@/types/database';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createServerClient as createSupabaseServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClientComponentClient as createClientComponent } from '@supabase/auth-helpers-nextjs';
 
 /**
@@ -19,7 +19,7 @@ export async function createServerClient() {
     throw new Error('Missing Supabase environment variables');
   }
   
-  return createServerClient<Database>(
+  return createSupabaseServerClient<Database>(
     supabaseUrl,
     supabaseKey,
     {

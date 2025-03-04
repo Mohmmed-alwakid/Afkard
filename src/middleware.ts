@@ -34,7 +34,12 @@ export async function middleware(request: NextRequest) {
   const redirectCount = parseInt(request.headers.get('x-redirect-count') || '0');
   if (redirectCount >= MAX_REDIRECTS) {
     log('Breaking redirect loop - too many redirects', { redirectCount });
-    return NextResponse.next();
+    // Force a clean slate by next - no more redirects
+    return NextResponse.next({
+      request: {
+        headers: new Headers(request.headers)
+      }
+    });
   }
   
   // Skip middleware for client-side redirector pages
@@ -165,7 +170,7 @@ export async function middleware(request: NextRequest) {
     }
   }
   
-  // For the dashboard routes, add anti-loop check
+  // For the dashboard routes, add anti-loop check with timeout
   if (pathname === '/dashboard' || DASHBOARD_ROUTES.some(route => pathname.startsWith(route))) {
     log('Dashboard access check');
     
@@ -183,11 +188,21 @@ export async function middleware(request: NextRequest) {
 
       // Create a response without redirects first
       const response = NextResponse.next()
-      const supabase = createMiddlewareClient({ req: request, res: response })
       
-      // Get the user's session with error handling
       try {
-        const { data: { session } } = await supabase.auth.getSession()
+        const supabase = createMiddlewareClient({ req: request, res: response })
+        
+        // Get the user's session with timeout to prevent hanging
+        let sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Session check timeout')), 3000); // 3 second timeout
+        });
+        
+        // Use Promise.race to implement the timeout
+        const { data: { session } } = await Promise.race([
+          sessionPromise,
+          timeoutPromise
+        ]) as any;
         
         // Log detailed session info for debugging
         log('Dashboard session check', { 
