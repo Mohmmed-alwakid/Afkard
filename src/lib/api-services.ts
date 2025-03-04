@@ -243,14 +243,36 @@ export const StudyService = {
 export const AuthService = {
   // Get the current session
   async getCurrentSession(isServer = false) {
-    const supabase = isServer ? createServerClient() : createClientComponentClient();
-    return await supabase.auth.getSession();
+    try {
+      // During static build, return a null session
+      if (process.env.NEXT_PHASE === 'phase-production-build') {
+        console.warn('Auth session requested during build - returning null session');
+        return { data: { session: null } };
+      }
+      
+      const supabase = isServer ? createServerClient() : createClientComponentClient();
+      return await supabase.auth.getSession();
+    } catch (error) {
+      console.error('Error getting current session:', error);
+      return { data: { session: null } };
+    }
   },
   
   // Get the current user
   async getCurrentUser(isServer = false) {
-    const { data } = await AuthService.getCurrentSession(isServer);
-    return data.session?.user || null;
+    try {
+      const { data } = await AuthService.getCurrentSession(isServer);
+      
+      // Handle case where session might be null
+      if (!data?.session) {
+        return { user: null };
+      }
+      
+      return { user: data.session.user };
+    } catch (error) {
+      console.error('Error getting current user:', error);
+      return { user: null };
+    }
   }
 };
 

@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   description: 'Your personalized Afkar dashboard',
 };
 
+// Force dynamic rendering to prevent build-time auth errors
+export const dynamic = 'force-dynamic';
+
 // Create a unified dashboard component that shows content based on role
 export default async function DashboardPage() {
   try {
@@ -75,7 +78,15 @@ export default async function DashboardPage() {
       </ErrorBoundary>
     );
   } catch (error) {
-    console.error('Unexpected error in Dashboard:', error);
-    redirect('/login?error=unexpected');
+    console.error("Error rendering dashboard:", error);
+    // Render a fallback or error UI
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="p-8 text-center">
+          <h1 className="text-2xl font-semibold mb-4">Dashboard Unavailable</h1>
+          <p>Unable to load dashboard content. Please try refreshing the page.</p>
+        </div>
+      </div>
+    );
   }
 } 
