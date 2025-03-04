@@ -11,13 +11,14 @@ const AUTH_ROUTES = [
   '/signup/participant', 
   '/reset-password', 
   '/verify', 
+  '/verify-email',
   '/callback',
   '/signup/verification'
 ]
-const DASHBOARD_ROUTES = ['/dashboard', '/profile', '/projects']
+const DASHBOARD_ROUTES = ['/dashboard', '/profile', '/projects', '/home']
 
-// CRITICAL FIX: Update to use a single unified dashboard
-const DASHBOARD_PATH = '/dashboard';
+// CRITICAL FIX: Update to use a unified home page
+const HOME_PATH = '/home';
 
 // Add anti-loop detection
 const MAX_REDIRECTS = 3; // Maximum number of redirects before breaking the loop
@@ -86,9 +87,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
   
-  // Always allow access to auth routes
-  if (AUTH_ROUTES.includes(pathname) || pathname.startsWith('/signup/')) {
-    log('Auth route: Processing with auth checks', { pathname })
+  // Special handling for verification pages
+  if (pathname === '/verify-email' || pathname.startsWith('/verify')) {
+    log('Verification route: Allowing access without additional checks', { pathname })
+    return NextResponse.next()
+  }
+  
+  // Login page handling
+  if (pathname === '/login') {
+    log('Login route: Processing with auth checks', { pathname })
     
     try {
       // Initialize Supabase client with the request
@@ -97,48 +104,48 @@ export async function middleware(request: NextRequest) {
       
       // Get the user's session
       const { data: { session } } = await supabase.auth.getSession()
-      log('Auth route session check', { 
+      log('Login route session check', { 
         hasSession: !!session,
         sessionUser: session?.user?.email
       })
       
-      // If user is authenticated on auth routes, consider redirecting
+      // If user is authenticated, redirect to home
       if (session && session.user && session.user.id) {
         // Extract return URL if present, but sanitize it
         const url = new URL(request.url)
         const returnUrl = url.searchParams.get('returnUrl')
-        log('Auth route with session', { returnUrl })
+        log('Login route with session', { returnUrl })
         
-        // Skip redirect if the URL already has a returnUrl to avoid loops
-        if (returnUrl) {
-          log('URL has returnUrl, allowing to proceed to prevent loops')
-          return response
+        // If there's a return URL, redirect there
+        if (returnUrl && returnUrl.startsWith('/')) {
+          log('Redirecting authenticated user to return URL:', returnUrl)
+          return NextResponse.redirect(new URL(returnUrl, request.url))
         }
         
-        // For login specifically, redirect to unified dashboard 
-        if (pathname === '/login') {
-          log('Redirecting authenticated user from login to unified dashboard')
-          return NextResponse.redirect(new URL(DASHBOARD_PATH, request.url))
-        }
-        
-        // For other auth routes, just proceed without redirects
-        log('Authenticated user on other auth route: allowing access')
-        return response
+        // Otherwise redirect to home
+        log('Redirecting authenticated user from login to home')
+        return NextResponse.redirect(new URL(HOME_PATH, request.url))
       }
       
-      // Otherwise, allow access to auth route for unauthenticated users
-      log('Unauthenticated user on auth route: Allowing access')
+      // Otherwise, allow access to login page for unauthenticated users
+      log('Unauthenticated user on login page: Allowing access')
       return response
     } catch (error) {
-      // For any errors on auth routes, just allow access
-      log('Error in auth route middleware', { error })
+      // For any errors on login route, just allow access
+      log('Error in login route middleware', { error })
       return NextResponse.next()
     }
   }
   
-  // For the dashboard routes, add anti-loop check with timeout
-  if (pathname === '/dashboard' || DASHBOARD_ROUTES.some(route => pathname.startsWith(route))) {
-    log('Dashboard access check');
+  // Other auth routes (not signup or login)
+  if (AUTH_ROUTES.includes(pathname)) {
+    log('Other auth route: Allowing access', { pathname })
+    return NextResponse.next()
+  }
+  
+  // For the dashboard/home routes, add anti-loop check with timeout
+  if (DASHBOARD_ROUTES.some(route => pathname.startsWith(route))) {
+    log('Protected route access check:', { pathname });
     
     try {
       // Check if this is potentially a redirect loop
@@ -170,16 +177,16 @@ export async function middleware(request: NextRequest) {
         ]) as any;
         
         // Log detailed session info for debugging
-        log('Dashboard session check', { 
+        log('Protected route session check', { 
+          route: pathname,
           hasSession: !!session,
           sessionUser: session?.user?.email,
-          userRole: session?.user?.user_metadata?.role,
           timestamp: new Date().toISOString()
         })
         
         // If no valid session or user, redirect to login with count headers
         if (!session || !session.user || !session.user.id) {
-          log('No valid session for dashboard access, redirecting to login')
+          log('No valid session for protected route, redirecting to login')
           const redirectUrl = new URL(`/login?returnUrl=${encodeURIComponent(pathname)}`, request.url);
           const redirectResponse = NextResponse.redirect(redirectUrl);
           
@@ -190,18 +197,18 @@ export async function middleware(request: NextRequest) {
           return redirectResponse;
         }
         
-        // Allow access to dashboard - it's a valid path 
-        log('Allow access to dashboard - valid session');
+        // Allow access to protected route - user is authenticated
+        log('Allow access to protected route - valid session');
         return response;
       } catch (sessionError) {
         // Handle session check errors
-        log('Error checking session for dashboard', { error: sessionError })
+        log('Error checking session for protected route', { error: sessionError })
         // Be lenient with errors - allow access and let client-side handle auth
         return response
       }
     } catch (error) {
       // Handle overall errors
-      log('Critical error in dashboard middleware', { error })
+      log('Critical error in protected route middleware', { error })
       // On critical errors, let client-side handle auth
       return NextResponse.next();
     }

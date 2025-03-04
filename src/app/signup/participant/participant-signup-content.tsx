@@ -20,6 +20,8 @@ import { useTranslations } from "@/hooks/use-translations"
 import { useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useAuthStore } from "@/store/auth-store"
+import { toast } from "@/hooks/use-toast"
 
 const signupSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required" }),
@@ -48,6 +50,7 @@ type SignupFormValues = z.infer<typeof signupSchema>
 export function ParticipantSignupContent() {
   const { isRTL } = useTranslations()
   const router = useRouter()
+  const { register } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -68,15 +71,38 @@ export function ParticipantSignupContent() {
   async function onSubmit(data: SignupFormValues) {
     setIsLoading(true)
     try {
-      // Call your API to register the user
-      console.log("Registration data:", data)
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-      // Handle success - redirect to confirmation page
+      console.log("Participant registration data:", data)
+      
+      // Use the auth store register function
+      const result = await register({
+        email: data.email,
+        password: data.password,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone,
+        role: 'participant', // Explicitly set role
+      });
+      
+      if (!result) {
+        throw new Error("Registration failed");
+      }
+      
+      toast({
+        title: "Registration successful",
+        description: "Please check your email to verify your account.",
+      });
+      
+      // Redirect to verification page
       router.push("/verify-email?email=" + encodeURIComponent(data.email))
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration failed:", error)
-      // Handle error
+      
+      // User-friendly error toast
+      toast({
+        title: "Registration failed",
+        description: error.message || "There was a problem creating your account. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false)
     }
