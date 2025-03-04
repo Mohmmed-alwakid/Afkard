@@ -12,7 +12,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase-server';
-import { redirect } from 'next/navigation';
+import { redirect, headers } from 'next/navigation';
 import { UserPreferencesMenu } from "@/components/user-preferences-menu";
 import { supabase } from '@/lib/supabase';
 
@@ -25,15 +25,36 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   try {
+    // Check for potential redirect loops - don't redirect if we just came from login
+    const referer = headers().get('referer') || '';
+    const isFromLogin = referer.includes('/login');
+    
     // Get user session with error handling
     const {
       data: { session },
       error,
     } = await supabase.auth.getSession();
 
-    // If error or no session, redirect to login
+    // If error or no session, handle based on referer
     if (error || !session) {
-      console.log("No valid session for dashboard, redirecting to login");
+      console.log("No valid session for dashboard, handling auth");
+      
+      // If coming from login, show a message instead of redirecting to prevent loops
+      if (isFromLogin) {
+        // Return the layout with a basic authentication message
+        return (
+          <div className="flex flex-col min-h-screen bg-gray-50">
+            <div className="flex items-center justify-center flex-1">
+              <div className="p-8 text-center">
+                <h1 className="text-2xl font-semibold mb-4">Authentication Required</h1>
+                <p>Please log in with valid credentials to access this area.</p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+      
+      // Not from login, safe to redirect
       redirect('/login?returnUrl=/dashboard');
     }
 

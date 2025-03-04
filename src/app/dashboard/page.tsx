@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { Metadata } from 'next';
 import { Loader2 } from 'lucide-react';
-import { redirect } from 'next/navigation';
+import { redirect, headers } from 'next/navigation';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { ResearcherDashboard } from '@/components/researcher/dashboard';
 import { HomePageClient } from '@/components/dashboard/home-page-client';
@@ -18,11 +18,27 @@ export const dynamic = 'force-dynamic';
 // Create a unified dashboard component that shows content based on role
 export default async function DashboardPage() {
   try {
-    // Get current user
+    // Get current user with robust error handling
     const user = await AuthService.getCurrentUser(true);
     
     // Check if user is authenticated
     if (!user) {
+      console.log("No authenticated user for dashboard");
+      // Don't redirect if we came from login to avoid loops
+      const referer = headers().get('referer') || '';
+      if (referer.includes('/login')) {
+        // Show a message instead of redirecting if we came from login
+        return (
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="p-8 text-center">
+              <h1 className="text-2xl font-semibold mb-4">Authentication Required</h1>
+              <p>Please log in to access your dashboard.</p>
+            </div>
+          </div>
+        );
+      }
+      
+      // Otherwise redirect to login
       redirect('/login?returnUrl=/dashboard');
     }
     

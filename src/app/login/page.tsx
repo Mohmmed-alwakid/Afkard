@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -21,28 +21,43 @@ function LoginContent() {
   const [loginInProgress, setLoginInProgress] = useState(false);
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get("returnUrl") || "";
+  // Ref to track if a redirect has been initiated to prevent multiple redirects
+  const redirectInitiated = useRef(false);
 
   // Check if already authenticated and redirect
   useEffect(() => {
-    if (isAuthenticated && user && !isLoading) {
-      console.log("🔄 Login page: User already authenticated", { 
-        user: user.email,
-        role: user.role, 
-        isLoading 
-      });
+    // Prevent executing this effect during SSR
+    if (typeof window === 'undefined') return;
 
-      // If there's a return URL, redirect there if it's valid
+    // Skip if we're still loading or a redirect is already in progress
+    if (isLoading || redirectInitiated.current) return;
+    
+    // Debug logging
+    console.log("Auth state check:", { 
+      isAuthenticated, 
+      hasUser: !!user, 
+      email: user?.email,
+      isLoading
+    });
+
+    // Only redirect if authenticated with a user
+    if (isAuthenticated && user) {
+      console.log("🔄 Login page: User authenticated, preparing redirect");
+      
+      // Prevent multiple redirects
+      redirectInitiated.current = true;
+      
+      // If there's a return URL, validate and redirect
       if (returnUrl && returnUrl.startsWith('/')) {
         console.log("🚀 Redirecting to return URL:", returnUrl);
         
-        // CRITICAL FIX: Use window.location.href to avoid ReferenceError
-        window.location.href = returnUrl;
-        return;
+        // Use Next.js router for client navigation
+        router.push(returnUrl);
+      } else {
+        // Redirect to dashboard
+        console.log("🚀 Redirecting to dashboard");
+        router.push("/dashboard");
       }
-
-      // CRITICAL FIX: Always redirect to the unified dashboard
-      console.log("🚀 Redirecting authenticated user to the dashboard");
-      window.location.href = "/dashboard";
     }
   }, [isAuthenticated, user, isLoading, returnUrl, router]);
 
@@ -67,13 +82,13 @@ function LoginContent() {
       // If there's a return URL and it's valid, redirect there
       if (returnUrl && returnUrl.startsWith('/')) {
         console.log("🚀 Login successful, redirecting to return URL:", returnUrl);
-        window.location.href = returnUrl;
+        router.push(returnUrl);
         return;
       }
       
       // CRITICAL FIX: Always redirect to the unified dashboard
       console.log("🚀 Login successful, redirecting to dashboard");
-      window.location.href = "/dashboard";
+      router.push("/dashboard");
       
     } catch (error) {
       console.error("Login error:", error);

@@ -5,10 +5,13 @@ import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 // Define route types for clarity
 const PUBLIC_ROUTES = ['/', '/about', '/contact', '/terms', '/privacy', '/help', '/faq']
 const AUTH_ROUTES = ['/login', '/signup', '/signup/researcher', '/signup/participant', '/reset-password', '/verify', '/callback']
-const DASHBOARD_ROUTES = ['/dashboard', '/profile']
+const DASHBOARD_ROUTES = ['/dashboard', '/profile', '/projects']
 
 // CRITICAL FIX: Update to use a single unified dashboard
 const DASHBOARD_PATH = '/dashboard';
+
+// Add anti-loop detection
+const MAX_REDIRECTS = 3; // Maximum number of redirects before breaking the loop
 
 const STATIC_PATTERNS = [
   /^\/_next\//,
@@ -26,6 +29,13 @@ const log = (message: string, data?: any) => {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   log('Request path', { pathname, url: request.url })
+  
+  // Count the number of redirects for anti-loop protection
+  const redirectCount = parseInt(request.headers.get('x-redirect-count') || '0');
+  if (redirectCount >= MAX_REDIRECTS) {
+    log('Breaking redirect loop - too many redirects', { redirectCount });
+    return NextResponse.next();
+  }
   
   // Skip middleware for client-side redirector pages
   if (pathname === '/home' || pathname === '/researcher') {
@@ -155,11 +165,22 @@ export async function middleware(request: NextRequest) {
     }
   }
   
-  // Handle middleware errors gracefully by adding more logging and fallbacks
-  if (pathname === '/dashboard') {
+  // For the dashboard routes, add anti-loop check
+  if (pathname === '/dashboard' || DASHBOARD_ROUTES.some(route => pathname.startsWith(route))) {
     log('Dashboard access check');
     
     try {
+      // Check if this is potentially a redirect loop
+      const referer = request.headers.get('referer') || '';
+      const referPath = referer ? new URL(referer).pathname : '';
+      const potentialLoop = referPath === '/login' || redirectCount > 0;
+      
+      if (potentialLoop) {
+        log('Potential login-dashboard redirect loop detected', { referer, redirectCount });
+        // Allow access and let client-side handle auth
+        return NextResponse.next();
+      }
+
       // Create a response without redirects first
       const response = NextResponse.next()
       const supabase = createMiddlewareClient({ req: request, res: response })
@@ -176,10 +197,12 @@ export async function middleware(request: NextRequest) {
           timestamp: new Date().toISOString()
         })
         
-        // If no session, redirect to login
+        // If no session, redirect to login with count header
         if (!session) {
           log('No session for dashboard access, redirecting to login')
-          return NextResponse.redirect(new URL(`/login?returnUrl=/dashboard`, request.url))
+          const redirectResponse = NextResponse.redirect(new URL(`/login?returnUrl=/dashboard`, request.url));
+          redirectResponse.headers.set('x-redirect-count', (redirectCount + 1).toString());
+          return redirectResponse;
         }
         
         // Allow access to dashboard - it's a valid path 
@@ -195,7 +218,7 @@ export async function middleware(request: NextRequest) {
       // Handle overall errors
       log('Critical error in dashboard middleware', { error })
       // On critical errors, redirect to login as a fallback
-      return NextResponse.redirect(new URL('/login', request.url))
+      return NextResponse.next();
     }
   }
   
