@@ -61,6 +61,9 @@ import {
   AlertTriangle,
   Check,
 } from 'lucide-react';
+import { useTranslations } from '@/lib/i18n/translations';
+import { useRTL } from '@/hooks/use-rtl';
+import { cn } from '@/lib/utils';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -68,6 +71,8 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('profile');
   const [isPending, setIsPending] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const { t } = useTranslations();
+  const { isRTL, getLanguage, setLanguage } = useRTL();
   
   // Form state
   const [formData, setFormData] = useState({
@@ -81,7 +86,7 @@ export default function ProfilePage() {
       mobile: false,
       marketing: true,
     },
-    language: 'en',
+    language: getLanguage(),
     theme: 'light',
   });
   
@@ -108,6 +113,9 @@ export default function ProfilePage() {
       ...prev,
       language: value,
     }));
+    
+    // Update the application language
+    setLanguage(value);
   };
   
   const handleThemeChange = (value: string) => {
@@ -140,7 +148,7 @@ export default function ProfilePage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <LoadingSpinner size="lg" text="Loading your profile..." />
+        <LoadingSpinner size="lg" text={t('common.loading')} />
       </div>
     );
   }
@@ -165,34 +173,49 @@ export default function ProfilePage() {
   };
   
   return (
-    <div className="container max-w-5xl py-8 px-4 md:px-6">
-      <h1 className="text-2xl font-bold mb-2">Your Account</h1>
-      <p className="text-gray-500 mb-8">Manage your account settings and preferences</p>
+    <div className="container max-w-5xl py-8 px-4 md:px-6" dir={isRTL ? 'rtl' : 'ltr'}>
+      <h1 className="text-2xl font-bold mb-2">{t('common.profile')}</h1>
+      <p className="text-gray-500 mb-8">{t('profile.manageSettings')}</p>
       
       {showSuccessMessage && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-md flex items-center text-green-700">
-          <Check className="h-5 w-5 mr-2" />
-          Your changes have been saved successfully.
+        <div className={cn(
+          "mb-6 p-4 bg-green-50 border border-green-200 rounded-md flex items-center text-green-700",
+          isRTL && "flex-row-reverse"
+        )}>
+          <Check className={cn("h-5 w-5", isRTL ? "ml-2" : "mr-2")} />
+          {t('profile.saveSuccess')}
         </div>
       )}
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-1 md:grid-cols-4">
-          <TabsTrigger value="profile" className="flex items-center justify-start md:justify-center gap-2">
+          <TabsTrigger value="profile" className={cn(
+            "flex items-center gap-2",
+            isRTL ? "justify-end md:justify-center flex-row-reverse" : "justify-start md:justify-center"
+          )}>
             <User className="h-4 w-4" />
-            <span>Profile</span>
+            <span>{t('common.profile')}</span>
           </TabsTrigger>
-          <TabsTrigger value="security" className="flex items-center justify-start md:justify-center gap-2">
+          <TabsTrigger value="security" className={cn(
+            "flex items-center gap-2",
+            isRTL ? "justify-end md:justify-center flex-row-reverse" : "justify-start md:justify-center"
+          )}>
             <Lock className="h-4 w-4" />
-            <span>Security</span>
+            <span>{t('profile.security')}</span>
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center justify-start md:justify-center gap-2">
+          <TabsTrigger value="notifications" className={cn(
+            "flex items-center gap-2",
+            isRTL ? "justify-end md:justify-center flex-row-reverse" : "justify-start md:justify-center"
+          )}>
             <Bell className="h-4 w-4" />
-            <span>Notifications</span>
+            <span>{t('common.notifications')}</span>
           </TabsTrigger>
-          <TabsTrigger value="preferences" className="flex items-center justify-start md:justify-center gap-2">
+          <TabsTrigger value="preferences" className={cn(
+            "flex items-center gap-2",
+            isRTL ? "justify-end md:justify-center flex-row-reverse" : "justify-start md:justify-center"
+          )}>
             <Globe className="h-4 w-4" />
-            <span>Preferences</span>
+            <span>{t('profile.preferences')}</span>
           </TabsTrigger>
         </TabsList>
         
@@ -201,463 +224,217 @@ export default function ProfilePage() {
           <div className="grid gap-8 grid-cols-1 md:grid-cols-3">
             <Card className="md:col-span-2">
               <CardHeader>
-                <CardTitle>Personal Information</CardTitle>
+                <CardTitle>{t('profile.personalInfo')}</CardTitle>
                 <CardDescription>
-                  Update your personal information and how others see you on the platform
+                  {t('profile.personalInfoDesc')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="first_name">First Name</Label>
+                    <Label htmlFor="first_name">{t('common.firstName')}</Label>
                     <Input
                       id="first_name"
                       name="first_name"
                       value={formData.first_name}
                       onChange={handleInputChange}
-                      placeholder="Your first name"
+                      placeholder={t('profile.firstNamePlaceholder')}
+                      isRTL={isRTL}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="last_name">Last Name</Label>
+                    <Label htmlFor="last_name">{t('common.lastName')}</Label>
                     <Input
                       id="last_name"
                       name="last_name"
                       value={formData.last_name}
                       onChange={handleInputChange}
-                      placeholder="Your last name"
+                      placeholder={t('profile.lastNamePlaceholder')}
+                      isRTL={isRTL}
                     />
                   </div>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
+                  <Label htmlFor="email">{t('common.email')}</Label>
                   <Input
                     id="email"
                     name="email"
                     type="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    placeholder="Your email address"
+                    placeholder={t('profile.emailPlaceholder')}
+                    isRTL={isRTL}
                   />
                   <p className="text-xs text-gray-500">
-                    This email will be used for account notifications and communications.
+                    {t('profile.emailDesc')}
                   </p>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="bio">Bio</Label>
+                  <Label htmlFor="bio">{t('profile.bio')}</Label>
                   <Textarea
                     id="bio"
                     name="bio"
                     value={formData.bio}
                     onChange={handleInputChange}
-                    placeholder="Tell us a bit about yourself..."
-                    className="min-h-[120px]"
+                    placeholder={t('profile.bioPlaceholder')}
+                    rows={4}
+                    isRTL={isRTL}
                   />
-                  <p className="text-xs text-gray-500">
-                    This will be displayed on your profile and may be visible to other users.
-                  </p>
                 </div>
               </CardContent>
-              <CardFooter className="flex justify-end">
-                <Button 
-                  onClick={handleSaveProfile}
-                  disabled={isPending}
-                >
+              <CardFooter className={cn(
+                "flex justify-end pt-4",
+                isRTL && "flex-row-reverse"
+              )}>
+                <Button onClick={handleSaveProfile} disabled={isPending}>
                   {isPending ? (
                     <>
-                      <LoadingSpinner size="sm" className="mr-2" />
-                      Saving...
+                      <LoadingSpinner className="mr-2" size="sm" />
+                      {t('common.saving')}
                     </>
                   ) : (
                     <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Save Changes
+                      <Save className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
+                      {t('common.save')}
                     </>
                   )}
                 </Button>
               </CardFooter>
             </Card>
             
+            {/* Avatar & Account Actions */}
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Your Avatar</CardTitle>
-                  <CardDescription>
-                    Upload or change your profile picture
-                  </CardDescription>
+                  <CardTitle>{t('profile.profilePhoto')}</CardTitle>
                 </CardHeader>
-                <CardContent className="flex flex-col items-center">
-                  <Avatar className="h-32 w-32 mb-4">
-                    <AvatarImage src={formData.avatar_url} />
-                    <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-                      {getInitials()}
-                    </AvatarFallback>
+                <CardContent className="flex flex-col items-center space-y-4">
+                  <Avatar className="h-24 w-24">
+                    {formData.avatar_url ? (
+                      <AvatarImage src={formData.avatar_url} alt={`${formData.first_name} ${formData.last_name}`} />
+                    ) : (
+                      <AvatarFallback className="text-xl">{getInitials()}</AvatarFallback>
+                    )}
                   </Avatar>
-                  <Button variant="outline" className="mb-2 w-full">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Photo
-                  </Button>
-                  <Button variant="ghost" className="text-destructive hover:text-destructive/90 w-full">
-                    Remove Photo
+                  <Button variant="outline" size="sm" className="w-full">
+                    <Upload className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
+                    {t('profile.uploadPhoto')}
                   </Button>
                 </CardContent>
               </Card>
               
-              <Card>
+              <Card className="border-destructive/50">
                 <CardHeader>
-                  <CardTitle>Account</CardTitle>
-                  <CardDescription>
-                    Manage your account settings
-                  </CardDescription>
+                  <CardTitle className="text-destructive">{t('profile.dangerZone')}</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start" 
-                    onClick={handleLogout}
-                  >
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Sign Out
-                  </Button>
-                  
+                <CardContent className="space-y-4">
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        className="w-full justify-start text-destructive hover:text-destructive border-destructive/20"
-                      >
-                        <Trash className="h-4 w-4 mr-2" />
-                        Delete Account
+                      <Button variant="destructive" size="sm" className="w-full">
+                        <Trash className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
+                        {t('profile.deleteAccount')}
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogTitle>{t('profile.confirmDelete')}</AlertDialogTitle>
                         <AlertDialogDescription>
-                          This action cannot be undone. This will permanently delete your account
-                          and remove all your data from our servers.
+                          {t('profile.deleteWarning')}
                         </AlertDialogDescription>
                       </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                          Delete Account
+                      <AlertDialogFooter className={cn(isRTL && "flex-row-reverse")}>
+                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction className="bg-destructive">
+                          {t('common.delete')}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleLogout}
+                    className="w-full text-destructive border-destructive/25 hover:bg-destructive/10"
+                  >
+                    <LogOut className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
+                    {t('common.logout')}
+                  </Button>
                 </CardContent>
               </Card>
             </div>
           </div>
         </TabsContent>
         
-        {/* Security Tab */}
-        <TabsContent value="security">
-          <Card>
-            <CardHeader>
-              <CardTitle>Password & Authentication</CardTitle>
-              <CardDescription>
-                Manage your password and security settings
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Change Password</h3>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="current_password">Current Password</Label>
-                    <Input
-                      id="current_password"
-                      type="password"
-                      placeholder="Your current password"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="new_password">New Password</Label>
-                    <Input
-                      id="new_password"
-                      type="password"
-                      placeholder="Your new password"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirm_password">Confirm New Password</Label>
-                    <Input
-                      id="confirm_password"
-                      type="password"
-                      placeholder="Confirm your new password"
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              <Separator className="my-6" />
-              
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Two-Factor Authentication</h3>
-                <p className="text-sm text-gray-500">
-                  Add an extra layer of security to your account by requiring both your password and a verification code.
-                </p>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium">Two-Factor Authentication</h4>
-                    <p className="text-sm text-gray-500">Not enabled</p>
-                  </div>
-                  <Button variant="outline">Enable</Button>
-                </div>
-              </div>
-              
-              <Separator className="my-6" />
-              
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Active Sessions</h3>
-                <p className="text-sm text-gray-500">
-                  Review and manage your active sessions on different devices.
-                </p>
-                <div className="space-y-2">
-                  <div className="p-4 border rounded-md">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h4 className="font-medium">Current Session</h4>
-                        <p className="text-xs text-gray-500">Windows 10 · Chrome · Riyadh, Saudi Arabia</p>
-                      </div>
-                      <div className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                        Active Now
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Started on {new Date().toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-                <Button variant="outline" className="w-full">
-                  <Shield className="h-4 w-4 mr-2" />
-                  Log Out of All Sessions
-                </Button>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button variant="outline">Cancel</Button>
-              <Button onClick={handleSaveProfile}>
-                <Save className="h-4 w-4 mr-2" />
-                Save Changes
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-        
-        {/* Notifications Tab */}
-        <TabsContent value="notifications">
-          <Card>
-            <CardHeader>
-              <CardTitle>Notification Settings</CardTitle>
-              <CardDescription>
-                Manage how and when you receive notifications
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Email Notifications</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="email_notifications">Project Updates</Label>
-                      <p className="text-sm text-gray-500">
-                        Receive notifications about project updates and changes
-                      </p>
-                    </div>
-                    <Switch
-                      id="email_notifications"
-                      checked={formData.notifications.email}
-                      onCheckedChange={(checked) => handleNotificationChange('email', checked)}
-                    />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="mobile_notifications">Study Responses</Label>
-                      <p className="text-sm text-gray-500">
-                        Get notified when new responses come in
-                      </p>
-                    </div>
-                    <Switch
-                      id="mobile_notifications"
-                      checked={formData.notifications.mobile}
-                      onCheckedChange={(checked) => handleNotificationChange('mobile', checked)}
-                    />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="marketing_notifications">Marketing & Tips</Label>
-                      <p className="text-sm text-gray-500">
-                        Receive tips, guides, and marketing communications
-                      </p>
-                    </div>
-                    <Switch
-                      id="marketing_notifications"
-                      checked={formData.notifications.marketing}
-                      onCheckedChange={(checked) => handleNotificationChange('marketing', checked)}
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              <Separator className="my-6" />
-              
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Notification Delivery</h3>
-                <p className="text-sm text-gray-500">
-                  Choose how you want to receive your notifications
-                </p>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <input type="checkbox" id="email_delivery" className="rounded" defaultChecked />
-                    <Label htmlFor="email_delivery">Email</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input type="checkbox" id="app_delivery" className="rounded" />
-                    <Label htmlFor="app_delivery">In-app notifications</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input type="checkbox" id="sms_delivery" className="rounded" disabled />
-                    <Label htmlFor="sms_delivery" className="text-gray-400">SMS (Premium feature)</Label>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button variant="outline">Reset to Defaults</Button>
-              <Button onClick={handleSaveProfile}>
-                <Save className="h-4 w-4 mr-2" />
-                Save Changes
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-        
         {/* Preferences Tab */}
         <TabsContent value="preferences">
           <Card>
             <CardHeader>
-              <CardTitle>Application Preferences</CardTitle>
+              <CardTitle>{t('profile.preferences')}</CardTitle>
               <CardDescription>
-                Customize your application experience
+                {t('profile.preferencesDesc')}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="language">Language</Label>
+                <Label htmlFor="language">{t('profile.language')}</Label>
                 <Select
                   value={formData.language}
                   onValueChange={handleLanguageChange}
                 >
                   <SelectTrigger id="language">
-                    <SelectValue placeholder="Select a language" />
+                    <SelectValue placeholder={t('profile.selectLanguage')} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="ar">Arabic</SelectItem>
-                    <SelectItem value="fr">French</SelectItem>
-                    <SelectItem value="es">Spanish</SelectItem>
+                    <SelectItem value="ar">العربية (Arabic)</SelectItem>
+                    <SelectItem value="fr">Français (French)</SelectItem>
+                    <SelectItem value="es">Español (Spanish)</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-gray-500">
-                  This will change the language used throughout the application.
-                </p>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="theme">Theme</Label>
+                <Label htmlFor="theme">{t('profile.theme')}</Label>
                 <Select
                   value={formData.theme}
                   onValueChange={handleThemeChange}
                 >
                   <SelectTrigger id="theme">
-                    <SelectValue placeholder="Select a theme" />
+                    <SelectValue placeholder={t('profile.selectTheme')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="light">Light</SelectItem>
-                    <SelectItem value="dark">Dark</SelectItem>
-                    <SelectItem value="system">System Default</SelectItem>
+                    <SelectItem value="light">{t('profile.themeLight')}</SelectItem>
+                    <SelectItem value="dark">{t('profile.themeDark')}</SelectItem>
+                    <SelectItem value="system">{t('profile.themeSystem')}</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-gray-500">
-                  Choose a theme for the application interface.
-                </p>
-              </div>
-              
-              <Separator className="my-6" />
-              
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Region Settings</h3>
-                <div className="space-y-2">
-                  <Label htmlFor="timezone">Timezone</Label>
-                  <Select defaultValue="utc+3">
-                    <SelectTrigger id="timezone">
-                      <SelectValue placeholder="Select a timezone" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="utc+3">Riyadh (UTC+3)</SelectItem>
-                      <SelectItem value="utc+0">London (UTC+0)</SelectItem>
-                      <SelectItem value="utc-5">New York (UTC-5)</SelectItem>
-                      <SelectItem value="utc-8">Los Angeles (UTC-8)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="date_format">Date Format</Label>
-                  <Select defaultValue="dd/mm/yyyy">
-                    <SelectTrigger id="date_format">
-                      <SelectValue placeholder="Select a date format" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="dd/mm/yyyy">DD/MM/YYYY</SelectItem>
-                      <SelectItem value="mm/dd/yyyy">MM/DD/YYYY</SelectItem>
-                      <SelectItem value="yyyy-mm-dd">YYYY-MM-DD</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              <Separator className="my-6" />
-              
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Accessibility</h3>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="reduced_motion">Reduced Motion</Label>
-                    <p className="text-sm text-gray-500">
-                      Minimize animations across the application
-                    </p>
-                  </div>
-                  <Switch id="reduced_motion" />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="high_contrast">High Contrast</Label>
-                    <p className="text-sm text-gray-500">
-                      Increase contrast between elements
-                    </p>
-                  </div>
-                  <Switch id="high_contrast" />
-                </div>
               </div>
             </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button variant="outline">Reset to Defaults</Button>
-              <Button onClick={handleSaveProfile}>
-                <Save className="h-4 w-4 mr-2" />
-                Save Changes
+            <CardFooter className={cn(
+              "flex justify-end pt-4",
+              isRTL && "flex-row-reverse"
+            )}>
+              <Button onClick={handleSaveProfile} disabled={isPending}>
+                {isPending ? (
+                  <>
+                    <LoadingSpinner className="mr-2" size="sm" />
+                    {t('common.saving')}
+                  </>
+                ) : (
+                  <>
+                    <Save className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
+                    {t('common.save')}
+                  </>
+                )}
               </Button>
             </CardFooter>
           </Card>
         </TabsContent>
+        
+        {/* Other tabs - implement similarly */}
       </Tabs>
     </div>
   );
