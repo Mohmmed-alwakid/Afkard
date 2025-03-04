@@ -14,15 +14,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
-import { 
-  CheckIcon,
-  DevicePhoneMobileIcon,
-  ComputerDesktopIcon,
-  TabletIcon,
-  GlobeAltIcon,
-  UserGroupIcon,
-  ArrowPathIcon 
-} from '@heroicons/react/24/outline';
+import { ArrowPathIcon, CheckIcon, ComputerDesktopIcon, DevicePhoneMobileIcon, UserGroupIcon } from '@heroicons/react/24/outline';
+import { TabletIcon } from '@heroicons/react/24/outline';
 
 interface StudyPreviewProps {
   formData: StudyFormData;

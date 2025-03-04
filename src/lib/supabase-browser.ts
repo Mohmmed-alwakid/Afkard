@@ -1,34 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/types/database';
 
-let supabaseClient: ReturnType<typeof createClient<Database>> | null = null;
+export const supabase = createClientComponentClient<Database>();
 
+// Add the createClient function for backward compatibility
 export function createClient() {
-  if (supabaseClient) return supabaseClient;
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Missing Supabase environment variables');
-  }
-
-  supabaseClient = createClient<Database>(
-    supabaseUrl,
-    supabaseKey,
-    {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      },
-      global: {
-        headers: {
-          'x-application-name': 'afkard-client',
-        },
-      },
-    }
-  );
-
-  return supabaseClient;
+  return supabase;
 } 

@@ -18,6 +18,17 @@ import {
   TypographyH2, 
   TypographyP 
 } from "@/components/ui/typography"
+import { FC } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { supabase } from "@/lib/supabase-browser"
+import { useToast } from "@/components/ui/use-toast"
 
 // Create an inner component that uses useSearchParams
 function ResetPasswordInner() {
@@ -86,13 +97,126 @@ function ResetPasswordInner() {
 
 // Wrap with Suspense in the main component
 export default function ResetPasswordContent() {
+  const { toast } = useToast()
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
+
+  const formSchema = z.object({
+    password: z.string().min(8, {
+      message: "Password must be at least 8 characters.",
+    }),
+    confirmPassword: z.string().min(8, {
+      message: "Password must be at least 8 characters.",
+    }),
+  }).refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  })
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      password: "",
+      confirmPassword: "",
+    },
+  })
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true)
+    
+    try {
+      // Get the hash from the URL
+      const hash = window.location.hash.substring(1)
+      
+      const { error } = await supabase.auth.updateUser({
+        password: values.password,
+      })
+      
+      if (error) {
+        throw error
+      }
+      
+      toast({
+        title: "Password updated",
+        description: "Your password has been updated successfully",
+      })
+      
+      // Redirect to login
+      window.location.href = "/login"
+    } catch (error: any) {
+      console.error("Error resetting password:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reset password",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     }>
-      <ResetPasswordInner />
+      <Card className="mx-auto max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold">Reset Password</CardTitle>
+          <CardDescription>
+            Enter your new password below
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>New Password</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="Enter your new password"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm Password</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="Confirm your new password"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Updating..." : "Reset Password"}
+              </Button>
+            </form>
+          </Form>
+          <div className="mt-4 text-center text-sm">
+            <Link href="/login" className="text-blue-600 hover:underline">
+              Back to Login
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
     </Suspense>
   )
 } 

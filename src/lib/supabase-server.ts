@@ -4,11 +4,12 @@ import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { Database } from '@/types/database';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createClientComponentClient as createClientComponent } from '@supabase/auth-helpers-nextjs';
 
 /**
  * Create a Supabase client for use in the server components
  */
-export function createServerClient() {
+export async function createServerClient() {
   const cookieStore = cookies();
   
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -67,5 +68,6 @@ export const createDirectClient = async (name: string) => {
   }
 };
 
-// Re-export the client component client for convenience
-export { createClientComponentClient } from '@supabase/auth-helpers-nextjs'; 
+// Replace the export statement at line 71
+// Instead of direct re-export, let's create a proper export
+export const createClientComponentClient = createClientComponent; 

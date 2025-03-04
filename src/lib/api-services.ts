@@ -252,4 +252,18 @@ export const AuthService = {
     const { data } = await AuthService.getCurrentSession(isServer);
     return data.session?.user || null;
   }
+};
+
+// Add the apiService export
+export const apiService = {
+  // Add your API service methods here
+  getStudies: async () => {
+    // Implementation
+    return [];
+  },
+  createStudy: async (data: any) => {
+    // Implementation
+    return { id: 'mock-id', ...data };
+  },
+  // Add other methods as needed
 }; 
