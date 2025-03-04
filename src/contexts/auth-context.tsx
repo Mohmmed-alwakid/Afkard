@@ -1,6 +1,15 @@
 /**
- * @deprecated Use useAuthStore from src/store/auth-store.ts instead.
- * This context-based auth provider is being phased out.
+ * @deprecated MARKED FOR REMOVAL
+ * This file contains a legacy, context-based auth implementation that has been replaced by Zustand.
+ * Use useAuthStore from src/store/auth-store.ts instead.
+ * 
+ * This context-based auth provider was used in an earlier version of the application.
+ * It is maintained temporarily for backward compatibility only.
+ * 
+ * TODO:
+ * 1. Check for any references to this file (none expected)
+ * 2. Remove this file completely in the next cleanup cycle
+ * 3. Update any component that might still use this context
  */
 "use client"
 

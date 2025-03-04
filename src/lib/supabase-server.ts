@@ -1,7 +1,13 @@
+"use server";
+
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { Database } from '@/types/database';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
+/**
+ * Create a Supabase client for use in the server components
+ */
 export function createServerClient() {
   const cookieStore = cookies();
   
@@ -12,31 +18,29 @@ export function createServerClient() {
     throw new Error('Missing Supabase environment variables');
   }
   
-  return createClient<Database>(
+  return createServerClient<Database>(
     supabaseUrl,
     supabaseKey,
     {
-      auth: {
-        persistSession: false,
-        // Get session from cookie storage instead of localStorage
-        // since we're on the server
-        cookieOptions: {
-          name: 'sb-auth-token',
-          // Let the cookie work in all routes
-          path: '/',
-          // http only for security
-          httpOnly: true,
-          // Strict same site for security
-          sameSite: 'strict',
-          // Secure in production
-          secure: process.env.NODE_ENV === 'production',
-        },
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-      },
       cookies: {
         get(name: string) {
           return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          try {
+            cookieStore.set({ name, value, ...options });
+          } catch (error) {
+            // We can't set cookies during SSG
+            console.error('Error setting cookie:', error);
+          }
+        },
+        remove(name: string, options: CookieOptions) {
+          try {
+            cookieStore.set({ name, value: '', ...options, maxAge: 0 });
+          } catch (error) {
+            // We can't remove cookies during SSG
+            console.error('Error removing cookie:', error);
+          }
         },
       },
       global: {
@@ -47,4 +51,21 @@ export function createServerClient() {
       },
     }
   );
-} 
+}
+
+/**
+ * Create a Supabase client for use with direct API calls
+ */
+export const createDirectClient = async (name: string) => {
+  const cookieStore = cookies();
+  try {
+    const value = await cookieStore.get(name)?.value;
+    return value;
+  } catch (error) {
+    console.error('Error getting cookie:', error);
+    return null;
+  }
+};
+
+// Re-export the client component client for convenience
+export { createClientComponentClient } from '@supabase/auth-helpers-nextjs'; 

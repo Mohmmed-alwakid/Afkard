@@ -2,11 +2,6 @@ import { z } from 'zod';
 
 // Configuration Constants
 export const AUTH_CONFIG = {
-  SESSION: {
-    EXPIRY: 24 * 60 * 60 * 1000, // 24 hours
-    REFRESH_INTERVAL: 10 * 60 * 1000, // 10 minutes
-    INACTIVITY_TIMEOUT: 30 * 60 * 1000, // 30 minutes
-  },
   COOKIE: {
     NAME: 'sb-ohsitwbtihwtpywjahpv-auth-token',
     OPTIONS: {
@@ -15,6 +10,11 @@ export const AUTH_CONFIG = {
       path: '/',
       maxAge: 24 * 60 * 60, // 24 hours
     }
+  },
+  SESSION: {
+    EXPIRY: 24 * 60 * 60 * 1000, // 24 hours
+    REFRESH_INTERVAL: 10 * 60 * 1000, // 10 minutes
+    INACTIVITY_TIMEOUT: 30 * 60 * 1000, // 30 minutes
   },
   ROUTES: {
     PUBLIC: [
@@ -67,6 +67,10 @@ export const AUTH_CONFIG = {
   },
 } as const;
 
+// Export session configuration
+export const SESSION_EXPIRY = AUTH_CONFIG.SESSION.EXPIRY;
+export const AUTH_COOKIE_NAME = AUTH_CONFIG.COOKIE.NAME;
+
 // URL Configuration
 export const URL_CONFIG = {
   APP: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
@@ -100,11 +104,24 @@ export const SessionSchema = z.object({
   user: z.object({
     id: z.string(),
     email: z.string().email(),
-    role: UserRoleSchema,
+    role: z.string().optional(),
     email_confirmed_at: z.string().nullable(),
     last_sign_in_at: z.string().nullable(),
-    user_metadata: z.record(z.unknown()).optional(),
+    user_metadata: z.object({
+      role: UserRoleSchema.optional(),
+      first_name: z.string().optional(),
+      last_name: z.string().optional(),
+      organization: z.string().optional(),
+    }).optional(),
   }),
+}).transform((session) => {
+  return {
+    ...session,
+    user: {
+      ...session.user,
+      role: session.user.user_metadata?.role || 'participant'
+    }
+  };
 });
 
 export type User = z.infer<typeof UserSchema>;
@@ -129,10 +146,14 @@ export function isAuthRoute(pathname: string): boolean {
   return AUTH_CONFIG.ROUTES.AUTH.some(route => pathname === route);
 }
 
-export function isProtectedRoute(pathname: string, role: UserRole): boolean {
-  const routes = role === 'admin' 
+export function isProtectedRoute(pathname: string, role?: UserRole | string | null): boolean {
+  const validRole = (role && ['admin', 'researcher', 'participant'].includes(role)) 
+    ? role as UserRole 
+    : 'participant';
+
+  const routes = validRole === 'admin' 
     ? [...AUTH_CONFIG.ROUTES.PROTECTED.ADMIN, ...AUTH_CONFIG.ROUTES.PROTECTED.RESEARCHER, ...AUTH_CONFIG.ROUTES.PROTECTED.PARTICIPANT]
-    : role === 'researcher'
+    : validRole === 'researcher'
     ? [...AUTH_CONFIG.ROUTES.PROTECTED.RESEARCHER, ...AUTH_CONFIG.ROUTES.PROTECTED.PARTICIPANT]
     : AUTH_CONFIG.ROUTES.PROTECTED.PARTICIPANT;
 
@@ -142,15 +163,8 @@ export function isProtectedRoute(pathname: string, role: UserRole): boolean {
   );
 }
 
-export function getDefaultRedirect(role: UserRole): string {
-  switch (role) {
-    case 'admin':
-      return '/admin/dashboard';
-    case 'researcher':
-      return '/researcher/dashboard';
-    default:
-      return '/dashboard';
-  }
+export function getDefaultRedirect(role?: UserRole | string | null): string {
+  return '/dashboard';
 }
 
 export function getLoginRedirect(returnUrl?: string | null): string {

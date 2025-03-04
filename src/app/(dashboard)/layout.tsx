@@ -26,19 +26,33 @@ export default async function DashboardLayout({
   // Get the current user session
   const {
     data: { session },
+    error: sessionError
   } = await supabase.auth.getSession();
+
+  // Handle session error or no session
+  if (sessionError) {
+    console.error('Error fetching session:', sessionError);
+    redirect('/login');
+  }
 
   // If no session, redirect to login
   if (!session) {
+    console.log('No active session found in dashboard layout, redirecting to login');
     redirect('/login');
   }
 
   // Get user profile with role information
-  const { data: user } = await supabase
+  const { data: user, error: userError } = await supabase
     .from('users')
     .select('*')
     .eq('id', session.user.id)
     .single();
+  
+  // Handle user data error
+  if (userError) {
+    console.error('Error fetching user data:', userError);
+    // We have a session but no user data, still allow access with default role
+  }
 
   const userRole = user?.role || 'participant';
   
@@ -137,7 +151,10 @@ export default async function DashboardLayout({
           
           <div className="flex items-center gap-4">
             {/* Notifications */}
-            <button className="h-9 w-9 rounded-full flex items-center justify-center hover:bg-[#F7F7FC] text-[#73738C]">
+            <button 
+              className="h-9 w-9 rounded-full flex items-center justify-center hover:bg-[#F7F7FC] text-[#73738C]"
+              aria-label="Notifications"
+            >
               <BellRing className="h-5 w-5" />
             </button>
             

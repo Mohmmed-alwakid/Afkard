@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Get the session cookie
-      const sessionCookie = cookieStore.get(AUTH_COOKIE_NAME);
+      // Get the session cookie - adding await keyword
+      const sessionCookie = await cookieStore.get(AUTH_COOKIE_NAME);
       
       // Create the response with redirect
       const response = NextResponse.redirect(new URL(next, request.url));

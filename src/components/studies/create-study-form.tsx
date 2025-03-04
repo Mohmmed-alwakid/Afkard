@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -26,337 +26,261 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, PlusCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
+import { AudiencePreview } from './audience-preview';
+import { 
+  targetAudienceSchema, 
+  getActiveFiltersCount, 
+  formatAudienceCriteriaForStorage,
+  SAUDI_REGIONS,
+  OCCUPATION_SECTORS
+} from '@/utils/audience-utils';
+import { apiService } from '@/lib/api-services';
+import { StudyTypeSelection } from './study-steps/study-type-selection';
+import { StudyBasicInfo } from './study-steps/study-basic-info';
+import { StudyAudience } from './study-steps/study-audience';
+import { StudyTestPlan } from './study-steps/study-test-plan';
+import { StudyPreview } from './study-steps/study-preview';
 
-// Define the form validation schema using Zod
-const studyFormSchema = z.object({
-  title: z.string().min(5, { message: 'Title must be at least 5 characters long' }),
-  description: z.string().min(10, { message: 'Description must be at least 10 characters long' }),
-  type: z.enum(['test', 'interview'], { 
-    required_error: 'Please select a study type'
+// Define the schema for study creation
+export const studySchema = z.object({
+  title: z.string().min(3, { message: 'Title must be at least 3 characters' }),
+  description: z.string().min(10, { message: 'Description must be at least 10 characters' }),
+  project_id: z.string().min(1, { message: 'Please select a project' }),
+  owner_id: z.string(),
+  status: z.enum(['draft', 'active', 'completed']).default('draft'),
+  study_type: z.enum(['survey', 'usability_test', 'interview']),
+  use_template: z.boolean().default(false),
+  template_id: z.string().optional(),
+  audience: z.object({
+    participant_count: z.number().min(1),
+    devices: z.array(z.enum(['desktop', 'mobile', 'tablet'])),
+    demographic_filters: z.object({
+      age_range: z.array(z.string()).optional(),
+      gender: z.array(z.string()).optional(),
+      countries: z.array(z.string()).optional(),
+      languages: z.array(z.string()).optional(),
+      employment_status: z.array(z.string()).optional(),
+      job_level: z.array(z.string()).optional(),
+    }).optional(),
+    screener_questions: z.array(
+      z.object({
+        question: z.string(),
+        answer_type: z.enum(['text', 'multiple_choice', 'yes_no']),
+        options: z.array(z.string()).optional(),
+        required_answer: z.string().optional(),
+      })
+    ).optional(),
   }),
-  project_id: z.string().uuid({ message: 'Please select a project' }),
-  target_participants: z.coerce.number().min(1, { message: 'At least 1 participant required' }),
-  reward_amount: z.coerce.number().min(0),
-  estimated_duration: z.coerce.number().min(5, { message: 'Duration must be at least 5 minutes' }),
-  auto_approve: z.boolean().default(false),
+  test_plan: z.object({
+    blocks: z.array(
+      z.object({
+        id: z.string(),
+        type: z.enum([
+          'welcome', 
+          'open_question', 
+          'simple_input', 
+          'opinion_scale', 
+          'multiple_choice', 
+          'yes_no', 
+          'five_second_test'
+        ]),
+        title: z.string(),
+        content: z.any(), // This will be different for each block type
+      })
+    ),
+  }),
 });
 
-type StudyFormValues = z.infer<typeof studyFormSchema>;
-
-// Default form values
-const defaultValues: Partial<StudyFormValues> = {
-  title: '',
-  description: '',
-  type: 'test',
-  target_participants: 10,
-  reward_amount: 0,
-  estimated_duration: 15,
-  auto_approve: false,
-};
-
-interface Project {
-  id: string;
-  name: string;
-}
+export type StudyFormData = z.infer<typeof studySchema>;
 
 interface CreateStudyFormProps {
   userId: string;
-  projects: Project[];
+  userProjects: { id: string; title: string }[];
 }
 
-export function CreateStudyForm({ userId, projects }: CreateStudyFormProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export function CreateStudyForm({ userId, userProjects }: CreateStudyFormProps) {
   const router = useRouter();
-  const supabase = createClient();
-
-  // Create form with validation
-  const form = useForm<StudyFormValues>({
-    resolver: zodResolver(studyFormSchema),
-    defaultValues,
+  const [currentStep, setCurrentStep] = useState<number>(0);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  
+  // Initialize form with default values
+  const [formData, setFormData] = useState<StudyFormData>({
+    title: '',
+    description: '',
+    project_id: '',
+    owner_id: userId,
+    status: 'draft',
+    study_type: 'survey',
+    use_template: false,
+    audience: {
+      participant_count: 10,
+      devices: ['desktop'],
+      demographic_filters: {
+        age_range: [],
+        gender: [],
+        countries: [],
+        languages: [],
+        employment_status: [],
+        job_level: [],
+      },
+      screener_questions: [],
+    },
+    test_plan: {
+      blocks: [],
+    },
   });
 
-  // Submit handler
-  async function onSubmit(data: StudyFormValues) {
-    if (projects.length === 0) {
-      toast({
-        title: 'No projects available',
-        description: 'Please create a project first before creating a study.',
-        variant: 'destructive',
-      });
-      return;
+  const steps = [
+    { name: 'Type', component: StudyTypeSelection },
+    { name: 'Basic Info', component: StudyBasicInfo },
+    { name: 'Audience', component: StudyAudience },
+    { name: 'Test Plan', component: StudyTestPlan },
+    { name: 'Preview', component: StudyPreview },
+  ];
+
+  const handleNext = () => {
+    if (currentStep < steps.length - 1) {
+      setCurrentStep(currentStep + 1);
     }
+  };
 
-    setIsSubmitting(true);
+  const handleBack = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
 
+  const updateFormData = (newData: Partial<StudyFormData>) => {
+    setFormData((prev) => ({ ...prev, ...newData }));
+  };
+
+  const handleSubmit = async () => {
     try {
-      // Format data for the database
-      const studyData = {
-        project_id: data.project_id,
-        title: data.title,
-        description: data.description,
-        type: data.type,
+      setIsSubmitting(true);
+      setFormError(null);
+      
+      // Create study in the database
+      const result = await apiService.createStudy({
+        title: formData.title,
+        description: formData.description,
+        project_id: formData.project_id,
+        owner_id: formData.owner_id,
         status: 'draft',
-        target_audience: {
-          criteria: {}
-        },
-        settings: {
-          max_participants: data.target_participants,
-          reward_amount: data.reward_amount,
-          estimated_duration: data.estimated_duration,
-          auto_approve: data.auto_approve
-        }
-      };
+        // Add additional fields as needed
+        // These would be added to your Study type in the database
+        type: formData.study_type,
+        // The audience and test plan data would need to be stored in related tables
+        // or as JSON in the study record
+      });
 
-      // Insert into Supabase
-      const { data: study, error } = await supabase
-        .from('studies')
-        .insert(studyData)
-        .select()
-        .single();
-
-      if (error) {
-        throw new Error(error.message);
+      if (result.error) {
+        setFormError(result.error);
+        return;
       }
 
-      // Success notification
-      toast({
-        title: 'Study created!',
-        description: 'Your study has been created successfully.',
-      });
-
-      // Redirect to the study details page
-      router.push(`/studies/${study.id}`);
-      router.refresh();
+      // Navigate to the study detail page
+      router.push(`/studies/${result.data?.id}`);
     } catch (error) {
+      setFormError('An unexpected error occurred. Please try again.');
       console.error('Error creating study:', error);
-      toast({
-        title: 'Error creating study',
-        description: error instanceof Error ? error.message : 'An unknown error occurred',
-        variant: 'destructive',
-      });
     } finally {
       setIsSubmitting(false);
     }
-  }
-
-  // Handle project creation if no projects exist
-  const handleCreateProject = () => {
-    router.push('/projects/new');
   };
 
-  if (projects.length === 0) {
-    return (
-      <Card className="p-6 flex flex-col items-center text-center">
-        <h3 className="text-lg font-medium mb-2">Create a project first</h3>
-        <p className="text-[#666675] text-base">
-          Let&apos;s design your research study together.
-        </p>
-        <p className="text-[#666675] text-base">
-          We&apos;ll help you create an effective study.
-        </p>
-        <Button onClick={handleCreateProject}>
-          Create Your First Project
-        </Button>
-      </Card>
-    );
-  }
+  const CurrentStepComponent = steps[currentStep].component;
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        {/* Project Selection */}
-        <FormField
-          control={form.control}
-          name="project_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Project</FormLabel>
-              <Select 
-                onValueChange={field.onChange} 
-                defaultValue={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a project" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Study Title */}
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Study Title</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., Website Usability Testing" {...field} />
-              </FormControl>
-              <FormDescription>
-                Give your study a clear, descriptive title
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Study Description */}
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Describe what participants will be doing in this study"
-                  className="min-h-32"
-                  {...field}
+    <div className="w-full max-w-4xl mx-auto">
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Create New Study</CardTitle>
+        </CardHeader>
+        
+        <CardContent>
+          {/* Progress indicator */}
+          <div className="mb-8">
+            <Tabs value={steps[currentStep].name.toLowerCase()} className="w-full">
+              <TabsList className="w-full grid grid-cols-5">
+                {steps.map((step, index) => (
+                  <TabsTrigger
+                    key={index}
+                    value={step.name.toLowerCase()}
+                    disabled={index !== currentStep}
+                    className={index <= currentStep ? 'text-primary' : 'text-muted-foreground'}
+                  >
+                    {index + 1}. {step.name}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              
+              <TabsContent value={steps[currentStep].name.toLowerCase()} className="mt-6">
+                <CurrentStepComponent 
+                  formData={formData} 
+                  updateFormData={updateFormData} 
+                  userProjects={userProjects}
                 />
-              </FormControl>
-              <FormDescription>
-                Provide details about the study and what you&apos;re looking to learn
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
+              </TabsContent>
+            </Tabs>
+          </div>
+          
+          {formError && (
+            <div className="bg-destructive/10 text-destructive p-3 rounded-md mb-4">
+              {formError}
+            </div>
           )}
-        />
-
-        {/* Study Type */}
-        <FormField
-          control={form.control}
-          name="type"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Study Type</FormLabel>
-              <Select 
-                onValueChange={field.onChange} 
-                defaultValue={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a study type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="test">Usability Test</SelectItem>
-                  <SelectItem value="interview">Interview</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                The type of research you&apos;ll be conducting
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Target Participants */}
-          <FormField
-            control={form.control}
-            name="target_participants"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Target Participants</FormLabel>
-                <FormControl>
-                  <Input type="number" min={1} {...field} />
-                </FormControl>
-                <FormDescription>
-                  Number of participants needed
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Reward Amount */}
-          <FormField
-            control={form.control}
-            name="reward_amount"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Reward (USD)</FormLabel>
-                <FormControl>
-                  <Input type="number" min={0} step={0.01} {...field} />
-                </FormControl>
-                <FormDescription>
-                  Compensation per participant
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Estimated Duration */}
-          <FormField
-            control={form.control}
-            name="estimated_duration"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Duration (minutes)</FormLabel>
-                <FormControl>
-                  <Input type="number" min={5} {...field} />
-                </FormControl>
-                <FormDescription>
-                  Estimated time commitment
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {/* Auto Approve */}
-        <FormField
-          control={form.control}
-          name="auto_approve"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-              <div className="space-y-1 leading-none">
-                <FormLabel>Auto-approve participants</FormLabel>
-                <FormDescription>
-                  Automatically approve participants who sign up for this study
-                </FormDescription>
-              </div>
-            </FormItem>
-          )}
-        />
-
-        <div className="flex justify-end gap-4">
+        </CardContent>
+        
+        <CardFooter className="flex justify-between">
           <Button 
-            type="button" 
             variant="outline" 
-            onClick={() => router.back()}
+            onClick={handleBack} 
+            disabled={currentStep === 0 || isSubmitting}
           >
-            Cancel
+            Previous
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Create Study
-          </Button>
-        </div>
-      </form>
-    </Form>
+          
+          {currentStep === steps.length - 1 ? (
+            <Button 
+              onClick={handleSubmit} 
+              disabled={isSubmitting}
+              className="bg-primary text-white"
+            >
+              {isSubmitting ? 'Creating Study...' : 'Create Study'}
+            </Button>
+          ) : (
+            <Button 
+              onClick={handleNext} 
+              disabled={isSubmitting}
+            >
+              Next
+            </Button>
+          )}
+        </CardFooter>
+      </Card>
+    </div>
   );
 } 

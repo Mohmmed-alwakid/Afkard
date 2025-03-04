@@ -1,267 +1,254 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { 
-  isPublicRoute, 
-  isAuthRoute, 
-  isProtectedRoute,
-  isStaticAsset,
-  AUTH_CONFIG,
-  URL_CONFIG,
-  ROUTES
-} from '@/config/auth.config'
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 
-// Types
-interface AuthState {
-  hasAuthCookie: boolean;
-  session: any | null;
-  sessionError: Error | null;
-}
+// Define route types for clarity
+const PUBLIC_ROUTES = ['/', '/about', '/contact', '/terms', '/privacy', '/help', '/faq']
+const AUTH_ROUTES = ['/login', '/signup', '/reset-password', '/verify', '/callback']
+const DASHBOARD_ROUTES = ['/dashboard', '/profile']
 
-// Constants
-const MIDDLEWARE_CONFIG = {
-  DEBUG: process.env.NODE_ENV === 'development',
-  COOKIE_OPTIONS: {
-    ...AUTH_CONFIG.COOKIE.OPTIONS,
-    secure: process.env.NODE_ENV === 'production',
-  }
-} as const;
+// CRITICAL FIX: Update to use a single unified dashboard
+const DASHBOARD_PATH = '/dashboard';
 
-// Utility Functions
+const STATIC_PATTERNS = [
+  /^\/_next\//,
+  /^\/static\//,
+  /^\/api\//,
+  /\.(ico|png|jpg|jpeg|gif|svg|css|js|woff|woff2)$/
+]
+
+// Simple debug logging for development
+const DEBUG = true // Always enable debugging while fixing this issue
 const log = (message: string, data?: any) => {
-  if (MIDDLEWARE_CONFIG.DEBUG) {
-    console.log(`[Middleware] ${message}`, data || '');
-  }
-};
+  if (DEBUG) console.log(`[Middleware] ${message}`, data || '')
+}
 
-const handleError = (error: unknown, pathname: string) => {
-  console.error('[Middleware Error]', error);
-  log('Error handling request', { pathname, error });
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+  log('Request path', { pathname, url: request.url })
   
-  // Always allow access to auth routes even if there's an error
-  if (isAuthRoute(pathname)) {
-    return NextResponse.next();
-  }
-  if (isPublicRoute(pathname)) {
-    return NextResponse.next();
+  // Skip middleware for client-side redirector pages
+  if (pathname === '/home' || pathname === '/researcher') {
+    log('Skipping middleware checks for client-side auth redirector page', { pathname })
+    return NextResponse.next()
   }
   
-  const redirectUrl = new URL('/login', URL_CONFIG.PUBLIC);
-  redirectUrl.searchParams.set('error', 'An unexpected error occurred');
-  return NextResponse.redirect(redirectUrl);
-};
-
-// Auth Handlers
-const getAuthState = async (req: NextRequest, res: NextResponse): Promise<AuthState> => {
-  try {
-    const supabase = createMiddlewareClient({ req, res });
+  // Handle potential redirection loops
+  const referer = request.headers.get('referer') || '';
+  const referPath = referer ? new URL(referer).pathname : '';
+  
+  if (pathname === referPath) {
+    log('Breaking potential redirection loop', { pathname, referer });
+    return NextResponse.next();
+  }
+  
+  // Handle root path and old dashboard paths with redirects to new unified dashboard
+  if (pathname === '/' || pathname === '/home' || pathname === '/researcher') {
+    log('Root or Legacy Dashboard PATH: Handling with corrected paths', { pathname })
     
-    // Get cookie first
-    const authCookie = await req.cookies.get(AUTH_CONFIG.COOKIE.NAME);
-    log('Cookie check', { 
-      cookieName: AUTH_CONFIG.COOKIE.NAME,
-      hasCookie: !!authCookie?.value 
-    });
-
-    // Only try to get session if we have a cookie
-    let session = null;
-    let sessionError = null;
-
-    if (authCookie?.value) {
-      const { data, error } = await supabase.auth.getSession();
-      session = data?.session;
-      sessionError = error;
+    // Create a response without redirects first
+    const response = NextResponse.next()
+    const supabase = createMiddlewareClient({ req: request, res: response })
+    
+    try {
+      // Quick session check without automatic redirects
+      const { data: { session } } = await supabase.auth.getSession()
       
-      log('Session check', { 
+      log('Session check for dashboard path', { 
         hasSession: !!session,
-        hasError: !!error,
-        error: error?.message
-      });
+        sessionUser: session?.user?.email,
+        userRole: session?.user?.user_metadata?.role
+      })
+      
+      // For the root path, handle redirection appropriately
+      if (pathname === '/') {
+        if (!session) {
+          // If not authenticated, stay on home page
+          return response;
+        }
+        
+        // If authenticated, redirect to unified dashboard
+        log('Redirecting root path to unified dashboard');
+        return NextResponse.redirect(new URL(DASHBOARD_PATH, request.url));
+      }
+      
+      // Handle legacy dashboard routes (researcher & home) 
+      if (pathname === '/researcher' || pathname === '/home') {
+        if (!session) {
+          // Redirect to login with dashboard return URL if not authenticated
+          log('No session for dashboard route, redirecting to login')
+          return NextResponse.redirect(new URL(`/login?returnUrl=${DASHBOARD_PATH}`, request.url))
+        }
+        
+        // Redirect to unified dashboard
+        log('Redirecting legacy dashboard path to unified dashboard');
+        return NextResponse.redirect(new URL(DASHBOARD_PATH, request.url))
+      }
+      
+      // Otherwise just proceed
+      return response
+    } catch (error) {
+      log('Error checking session for dashboard path', { error })
+      return response
     }
-
-    return {
-      hasAuthCookie: !!authCookie?.value,
-      session,
-      sessionError,
-    };
-  } catch (error) {
-    console.error('[Auth State Error]', error);
-    return {
-      hasAuthCookie: false,
-      session: null,
-      sessionError: error as Error,
-    };
   }
-};
-
-const handleAppPort = async (
-  req: NextRequest,
-  res: NextResponse,
-  authState: AuthState
-): Promise<NextResponse> => {
-  const { pathname } = req.nextUrl;
   
-  log('Handling app port request', {
-    pathname,
-    hasSession: !!authState.session,
-    hasError: !!authState.sessionError
-  });
-
-  // For root path, allow access regardless of auth state
-  if (pathname === '/') {
-    log('Allowing access to root path');
-    return res;
+  // Always allow access to static assets
+  if (STATIC_PATTERNS.some(pattern => pattern.test(pathname))) {
+    log('Static asset: Allowing access', { pathname })
+    return NextResponse.next()
   }
-
-  // If no valid session for protected routes
-  if (!authState.session && isProtectedRoute(pathname)) {
-    log('No valid session for protected route, redirecting to login', {
-      pathname,
-      hasError: !!authState.sessionError,
-    });
+  
+  // Always allow access to public routes
+  if (PUBLIC_ROUTES.includes(pathname)) {
+    log('Public route: Allowing access', { pathname })
+    return NextResponse.next()
+  }
+  
+  // Always allow access to auth routes
+  if (AUTH_ROUTES.includes(pathname)) {
+    log('Auth route: Processing with auth checks', { pathname })
     
-    // Redirect to login with return URL
-    const redirectUrl = new URL('/login', URL_CONFIG.PUBLIC);
-    redirectUrl.searchParams.set('returnUrl', pathname);
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  // Allow access to all other routes
-  log('Allowing access');
-  return res;
-};
-
-const handlePublicPort = async (
-  req: NextRequest,
-  res: NextResponse,
-  authState: AuthState
-): Promise<NextResponse> => {
-  const { pathname } = req.nextUrl;
-
-  log('Handling public port request', {
-    pathname,
-    isAuthRoute: isAuthRoute(pathname),
-    isPublicRoute: isPublicRoute(pathname),
-    isProtectedRoute: isProtectedRoute(pathname),
-    hasSession: !!authState.session
-  });
-
-  // Always allow access to static assets and root path
-  if (isStaticAsset(pathname) || pathname === '/') {
-    log('Allowing static asset or root path');
-    return res;
-  }
-
-  // Handle auth routes
-  if (isAuthRoute(pathname)) {
-    if (authState.session) {
-      log('Redirecting authenticated user from auth route to dashboard');
-      return NextResponse.redirect(`${URL_CONFIG.APP}/dashboard`);
+    try {
+      // Initialize Supabase client with the request
+      const response = NextResponse.next()
+      const supabase = createMiddlewareClient({ req: request, res: response })
+      
+      // Get the user's session
+      const { data: { session } } = await supabase.auth.getSession()
+      log('Auth route session check', { 
+        hasSession: !!session,
+        sessionUser: session?.user?.email
+      })
+      
+      // If user is authenticated on auth routes, consider redirecting
+      if (session) {
+        // Extract return URL if present, but sanitize it
+        const url = new URL(request.url)
+        const returnUrl = url.searchParams.get('returnUrl')
+        log('Auth route with session', { returnUrl })
+        
+        // Skip redirect if the URL already has a returnUrl to avoid loops
+        if (returnUrl) {
+          log('URL has returnUrl, allowing to proceed to prevent loops')
+          return response
+        }
+        
+        // For login specifically, redirect to unified dashboard 
+        if (pathname === '/login') {
+          log('Redirecting authenticated user from login to unified dashboard')
+          return NextResponse.redirect(new URL(DASHBOARD_PATH, request.url))
+        }
+        
+        // For other auth routes, just proceed without redirects
+        log('Authenticated user on other auth route: allowing access')
+        return response
+      }
+      
+      // Otherwise, allow access to auth route for unauthenticated users
+      log('Unauthenticated user on auth route: Allowing access')
+      return response
+    } catch (error) {
+      // For any errors on auth routes, just allow access
+      log('Error in auth route middleware', { error })
+      return NextResponse.next()
     }
-    log('Allowing unauthenticated access to auth route');
-    return res;
   }
-
-  // Handle protected routes
-  if (isProtectedRoute(pathname)) {
-    if (!authState.session) {
-      log('Redirecting unauthenticated user to login');
-      const redirectUrl = new URL('/login', URL_CONFIG.PUBLIC);
-      redirectUrl.searchParams.set('returnUrl', pathname);
-      return NextResponse.redirect(redirectUrl);
-    }
+  
+  // Handle middleware errors gracefully by adding more logging and fallbacks
+  if (pathname === '/dashboard') {
+    log('Dashboard access check');
     
-    log('Redirecting authenticated user to app domain');
-    return NextResponse.redirect(`${URL_CONFIG.APP}${pathname}`);
+    try {
+      // Create a response without redirects first
+      const response = NextResponse.next()
+      const supabase = createMiddlewareClient({ req: request, res: response })
+      
+      // Get the user's session with error handling
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        // Log detailed session info for debugging
+        log('Dashboard session check', { 
+          hasSession: !!session,
+          sessionUser: session?.user?.email,
+          userRole: session?.user?.user_metadata?.role,
+          timestamp: new Date().toISOString()
+        })
+        
+        // If no session, redirect to login
+        if (!session) {
+          log('No session for dashboard access, redirecting to login')
+          return NextResponse.redirect(new URL(`/login?returnUrl=/dashboard`, request.url))
+        }
+        
+        // Allow access to dashboard - it's a valid path 
+        log('Allow access to dashboard');
+        return response;
+      } catch (sessionError) {
+        // Handle session check errors
+        log('Error checking session for dashboard', { error: sessionError })
+        // Be lenient with errors - allow access and let client-side handle auth
+        return response
+      }
+    } catch (error) {
+      // Handle overall errors
+      log('Critical error in dashboard middleware', { error })
+      // On critical errors, redirect to login as a fallback
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
   }
-
-  // Allow access to public routes
-  if (isPublicRoute(pathname)) {
-    log('Allowing public route');
-    return res;
-  }
-
-  // For any other routes, if authenticated redirect to app domain
-  if (authState.session) {
-    log('Redirecting authenticated user to app domain for unknown route');
-    return NextResponse.redirect(`${URL_CONFIG.APP}${pathname}`);
-  }
-
-  // Default: allow access for unauthenticated users
-  log('Allowing public access by default');
-  return res;
-};
-
-// Main Middleware
-export async function middleware(req: NextRequest) {
+  
+  // For protected routes, check authentication
   try {
-    const res = NextResponse.next();
-    const { pathname } = req.nextUrl;
-
-    log('Processing request', { pathname });
-
-    // Get authentication state
-    const authState = await getAuthState(req, res);
-
-    // Always allow access to static assets
-    if (isStaticAsset(pathname)) {
-      log('Allowing static asset');
-      return res;
+    // Initialize Supabase client with the request
+    const response = NextResponse.next()
+    const supabase = createMiddlewareClient({ req: request, res: response })
+    
+    // Get the user's session
+    const { data: { session } } = await supabase.auth.getSession()
+    log('Protected route session check', { 
+      hasSession: !!session,
+      sessionUser: session?.user?.email,
+      path: pathname
+    })
+    
+    // If no session, redirect to login with returnUrl
+    if (!session) {
+      log('No session: Redirecting to login', { pathname })
+      // Add the returnUrl, but don't use /login as returnUrl to avoid loops
+      const returnPath = pathname === '/login' ? '/' : pathname
+      const loginUrl = new URL(`/login${returnPath !== '/' ? `?returnUrl=${encodeURIComponent(returnPath)}` : ''}`, request.url)
+      return NextResponse.redirect(loginUrl)
     }
-
-    // Always allow access to root path
-    if (pathname === '/') {
-      log('Allowing access to root path');
-      return res;
-    }
-
-    // Handle auth routes
-    if (isAuthRoute(pathname)) {
-      if (authState.session) {
-        log('Redirecting authenticated user from auth route to dashboard');
-        return NextResponse.redirect(new URL('/dashboard', req.url));
-      }
-      log('Allowing unauthenticated access to auth route');
-      return res;
-    }
-
-    // Handle protected routes
-    if (isProtectedRoute(pathname)) {
-      if (!authState.session) {
-        log('Redirecting unauthenticated user to login');
-        const redirectUrl = new URL('/login', req.url);
-        redirectUrl.searchParams.set('returnUrl', pathname);
-        return NextResponse.redirect(redirectUrl);
-      }
-      log('Allowing authenticated access to protected route');
-      return res;
-    }
-
-    // Allow access to public routes
-    if (isPublicRoute(pathname)) {
-      log('Allowing public route');
-      return res;
-    }
-
-    // Default: allow access
-    log('Allowing access by default');
-    return res;
-
+    
+    // User is authenticated, allow access
+    log('Authenticated: Allowing access', { pathname })
+    return response
   } catch (error) {
-    return handleError(error, req.nextUrl.pathname);
+    // For any errors, log details and handle appropriately
+    log('Error in middleware', { error, pathname })
+    
+    if (PUBLIC_ROUTES.includes(pathname) || AUTH_ROUTES.includes(pathname)) {
+      log('Error but route is public/auth: allowing access')
+      return NextResponse.next()
+    }
+    
+    log('Error and route is protected: redirecting to login')
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 }
 
+// Configure which paths the middleware should run on
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
+     * Match all paths except:
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
-     * - api/health (health check endpoint)
      */
-    '/((?!_next/static|_next/image|favicon.ico|public/|api/health).*)',
+    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
   ],
 } 

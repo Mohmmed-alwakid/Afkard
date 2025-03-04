@@ -1,3 +1,13 @@
+/**
+ * @deprecated MARKED FOR REMOVAL
+ * This file contains a secondary auth provider implementation that appears to be unused.
+ * The main application uses src/components/auth/auth-provider.tsx instead.
+ * 
+ * TODO:
+ * 1. Check for any references to this component (none expected)
+ * 2. Remove this file completely in the next cleanup cycle
+ * 3. Consolidate any unique functionality into the main auth provider
+ */
 'use client';
 
 import { createContext, useContext, useEffect, useState, useRef } from 'react';

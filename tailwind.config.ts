@@ -305,6 +305,22 @@ const config: Config = {
   				'50%': {
   					transform: 'scale(0.95)'
   				}
+  			},
+  			'accordion-down': {
+  				from: {
+  					height: '0'
+  				},
+  				to: {
+  					height: 'var(--radix-accordion-content-height)'
+  				}
+  			},
+  			'accordion-up': {
+  				from: {
+  					height: 'var(--radix-accordion-content-height)'
+  				},
+  				to: {
+  					height: '0'
+  				}
   			}
   		},
   		animation: {
@@ -320,7 +336,9 @@ const config: Config = {
   			'enter-from-left': 'enter-from-left 0.25s ease-out',
   			'exit-to-right': 'exit-to-right 0.25s ease-in',
   			'exit-to-left': 'exit-to-left 0.25s ease-in',
-  			'pulse-scale': 'pulse-scale 1.5s infinite'
+  			'pulse-scale': 'pulse-scale 1.5s infinite',
+  			'accordion-down': 'accordion-down 0.2s ease-out',
+  			'accordion-up': 'accordion-up 0.2s ease-out'
   		}
   	}
   },

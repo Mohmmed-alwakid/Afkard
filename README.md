@@ -1,122 +1,124 @@
-# Afkar - Your Ultimate User Research Platform
+# AfkarD - Research Study Platform
 
-![Afkar Logo](public/logo.svg)
+AfkarD is a comprehensive platform for researchers to create, manage, and analyze research studies, while providing participants with a seamless experience to join and complete studies.
 
-Afkar is a comprehensive platform designed to streamline the user research process for researchers, participants, and admins. Our mission is to provide an intuitive, secure, and efficient solution that empowers researchers to conduct high-quality studies, engages participants effectively, and enables admins to manage the entire process seamlessly.
+## Features
 
-## 🚀 Features
+### For Researchers
+- Create and manage research studies
+- Track participant recruitment and progress
+- Analyze study results
+- Manage participant payments
 
-- **AI-Powered Analytics**: Get instant insights with our AI-powered analysis tools
-- **User Testing**: Conduct remote usability tests with real Saudi users
-- **Target Audience**: Access our diverse pool of participants or bring your own
-- **Project Management**: Organize and track research projects efficiently
-- **Team Collaboration**: Work seamlessly with your team members
-- **Real-time Analytics**: Monitor research progress and participant engagement
+### For Participants
+- Browse and join research studies
+- Complete studies and surveys
+- Track earnings and payment history
+- Manage profile and preferences
 
-## 🛠️ Tech Stack
+## Tech Stack
 
-- **Framework**: [Next.js 14](https://nextjs.org/) with App Router
-- **Language**: [TypeScript](https://www.typescriptlang.org/)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
-- **UI Components**: [Shadcn/UI](https://ui.shadcn.com/) + [Radix UI](https://www.radix-ui.com/)
-- **Authentication**: [Supabase Auth](https://supabase.com/auth)
-- **Database**: [Supabase](https://supabase.com/)
-- **State Management**: [Zustand](https://github.com/pmndrs/zustand)
-- **Form Validation**: [Zod](https://zod.dev/) + [React Hook Form](https://react-hook-form.com/)
-- **Charts**: [Recharts](https://recharts.org/)
+- **Frontend**: Next.js 14, TypeScript, Tailwind CSS, Shadcn/Radix UI
+- **State Management**: Zustand, React Query
+- **Backend**: Next.js API Routes, Supabase
+- **Database**: PostgreSQL (via Supabase)
+- **Authentication**: Supabase Auth
+- **Validation**: Zod
+- **Styling**: Tailwind CSS, Shadcn UI components
 
-## 📦 Project Structure
+## Getting Started
 
-```
-src/
-├── app/                    # Next.js app router pages
-│   ├── (auth)/            # Authentication routes
-│   ├── (dashboard)/       # Protected dashboard routes
-│   └── api/               # API routes
-├── components/            # React components
-│   ├── auth/             # Authentication components
-│   ├── dashboard/        # Dashboard components
-│   └── ui/               # Reusable UI components
-├── contexts/             # React contexts
-├── hooks/               # Custom React hooks
-├── lib/                 # Utility functions and configurations
-│   └── supabase/       # Supabase client setup
-├── styles/             # Global styles
-└── types/              # TypeScript type definitions
-```
+### Prerequisites
 
-## 🔐 Authentication Flow
+- Node.js 18.x or later
+- npm or yarn
+- Supabase account
 
-1. **Sign Up**:
-   - Email/password registration
-   - Email verification
-   - Profile creation
+### Installation
 
-2. **Sign In**:
-   - Email/password authentication
-   - Remember me functionality
-   - Password reset flow
-
-3. **Protected Routes**:
-   - Middleware-based route protection
-   - Role-based access control
-   - Session management
-
-## 🗄️ Database Schema
-
-- **Profiles**: User profiles and preferences
-- **Organizations**: Research organizations
-- **Projects**: Research projects
-- **Tasks**: Project tasks and assignments
-- **Comments**: Task comments and discussions
-- **Activity Logs**: System-wide activity tracking
-
-## 🚀 Getting Started
-
-1. **Clone the repository**:
+1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/afkar.git
-   cd afkar
+   git clone https://github.com/yourusername/afkard.git
+   cd afkard
    ```
 
-2. **Install dependencies**:
+2. Install dependencies:
    ```bash
    npm install
    ```
 
-3. **Set up environment variables**:
-   ```bash
-   cp .env.example .env.local
+3. Set up environment variables:
+   Create a `.env.local` file in the root directory with the following variables:
    ```
-   Fill in your Supabase credentials and other required variables.
-
-4. **Run database migrations**:
-   ```bash
-   npm run db:migrate
+   NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+   NEXT_PUBLIC_APP_URL=http://localhost:3000
    ```
 
-5. **Start the development server**:
+4. Start the development server:
    ```bash
    npm run dev
    ```
 
-Visit `http://localhost:3000` to see the application.
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## 🤝 Contributing
+### Database Setup
 
-We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+1. Create a new project in Supabase
+2. Run the database migrations:
+   ```bash
+   npm run db:migrate
+   ```
 
-## 📄 License
+## Project Structure
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+```
+afkard/
+├── public/            # Static assets
+├── src/
+│   ├── app/           # Next.js app router pages
+│   ├── components/    # React components
+│   │   ├── auth/      # Authentication components
+│   │   ├── dashboard/ # Dashboard components
+│   │   ├── studies/   # Study-related components
+│   │   └── ui/        # UI components (Shadcn)
+│   ├── lib/           # Utility functions and services
+│   │   ├── stores/    # Zustand stores
+│   │   └── supabase/  # Supabase client and utilities
+│   └── types/         # TypeScript type definitions
+├── supabase/          # Supabase configuration and migrations
+├── .env.example       # Example environment variables
+└── next.config.js     # Next.js configuration
+```
 
-## 🙏 Acknowledgments
+## Development Workflow
 
-- [Next.js Team](https://nextjs.org/)
-- [Shadcn](https://twitter.com/shadcn)
-- [Supabase Team](https://supabase.com/)
-- All our contributors and users
+1. Create a feature branch from `develop`
+2. Implement your changes
+3. Write tests for your changes
+4. Submit a pull request to `develop`
+5. After review, changes will be merged to `main` for deployment
 
----
+## Deployment
 
-Built with ❤️ for the Saudi research community
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- [Next.js](https://nextjs.org/)
+- [Supabase](https://supabase.io/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [Shadcn UI](https://ui.shadcn.com/)
+- [Radix UI](https://www.radix-ui.com/)

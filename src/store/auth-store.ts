@@ -31,6 +31,7 @@ const RETRY_DELAY = 1000
 const REFRESH_INTERVAL = 5 * 60 * 1000 // 5 minutes
 const SESSION_CHECK_INTERVAL = 60 * 1000 // 1 minute
 
+// Create a client-side Supabase client that will be consistent across the store
 const supabaseClient = createBrowserClient()
 
 type UserRole = Database['public']['Enums']['user_role']
@@ -44,17 +45,20 @@ export type User = DbUser & {
   preferences?: Record<string, any>
 }
 
-interface AuthState {
-  user: User | null
-  isLoading: boolean
-  error: string | null
-  isAuthenticated: boolean
-  twoFactorRequired: boolean
-  lastActive: number
-  rememberMe: boolean
+export interface AuthState {
+  user: User | null;
+  session: Session | null;
+  isLoading: boolean;
+  error: string | null;
+  isInitialized: boolean;
+  reset: () => void;
+  isAuthenticated: boolean;
+  twoFactorRequired: boolean;
+  lastActive: number;
+  rememberMe: boolean;
   
   // Actions
-  login: (email: string, password: string, rememberMe?: boolean) => Promise<{ user: User | null; session: any } | undefined>
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<LoginResult>
   register: (data: {
     email: string
     password: string
@@ -77,6 +81,14 @@ interface AuthState {
   setError: (error: string | null) => void
   setTwoFactorRequired: (required: boolean) => void
   updateLastActive: () => void
+}
+
+// Add the LoginResult interface
+export interface LoginResult {
+  success: boolean;
+  user?: User;
+  session?: Session;
+  error?: string;
 }
 
 async function retryWithBackoff<T>(
@@ -115,7 +127,7 @@ export const useAuthStore = create<AuthState>()(
 
         // Check session validity periodically
         sessionCheckInterval = setInterval(async () => {
-          const { data: { session } } = await supabase.auth.getSession();
+          const { data: { session } } = await supabaseClient.auth.getSession();
           if (!session) {
             console.log('No valid session found during check, logging out');
             get().logout();
@@ -157,7 +169,7 @@ export const useAuthStore = create<AuthState>()(
       const initializeAuth = async () => {
         try {
           console.log('Initializing auth state...');
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
           
           if (sessionError) {
             console.error('Error getting session:', sessionError);
@@ -181,7 +193,7 @@ export const useAuthStore = create<AuthState>()(
 
             console.log('Session valid, fetching user data...');
             // Try to get user data
-            const { data: userData, error: userError } = await supabase
+            const { data: userData, error: userError } = await supabaseClient
               .from('users')
               .select('*, profiles(*)')
               .eq('id', session.user.id)
@@ -226,8 +238,17 @@ export const useAuthStore = create<AuthState>()(
 
       return {
         user: null,
+        session: null,
         isLoading: false,
         error: null,
+        isInitialized: false,
+        reset: () => set({
+          user: null,
+          session: null,
+          isLoading: false,
+          error: null,
+          isInitialized: false,
+        }),
         isAuthenticated: false,
         twoFactorRequired: false,
         lastActive: Date.now(),
@@ -256,10 +277,10 @@ export const useAuthStore = create<AuthState>()(
             console.log('Starting login process for:', email);
 
             // Clear any existing session first
-            await supabase.auth.signOut();
+            await supabaseClient.auth.signOut();
             clearStoredSession();
 
-            const { data, error } = await supabase.auth.signInWithPassword({ 
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ 
               email, 
               password,
               options: {
@@ -269,21 +290,42 @@ export const useAuthStore = create<AuthState>()(
 
             if (error) {
               console.error('Login error from Supabase:', error);
-              throw new AuthError(error.message, error.name);
+              set({
+                isLoading: false,
+                error: error.message || 'Authentication failed',
+                isAuthenticated: false,
+                user: null,
+              });
+              return { 
+                success: false, 
+                error: error.message || 'Authentication failed'
+              };
             }
 
             if (!data.session) {
               console.error('No session returned from login');
-              throw new AuthError('No session returned', 'no_session');
+              set({
+                isLoading: false,
+                error: 'No session returned',
+                isAuthenticated: false,
+                user: null,
+              });
+              return { 
+                success: false, 
+                error: 'No session returned from authentication service'
+              };
             }
 
             console.log('Login successful, session obtained');
 
-            // Store session with persistence
-            storeSession(data.session, rememberMe);
+            // Store session - note we changed to use only one parameter
+            storeSession(data.session);
+            
+            // Set rememberMe flag separately if needed
+            set({ rememberMe });
 
             // Get user data
-            const { data: userData, error: userError } = await supabase
+            const { data: userData, error: userError } = await supabaseClient
               .from('users')
               .select('*, profiles(*)')
               .eq('id', data.session.user.id)
@@ -291,12 +333,32 @@ export const useAuthStore = create<AuthState>()(
 
             if (userError) {
               console.error('Error fetching user data:', userError);
-              throw new AuthError('Failed to fetch user data', 'user_fetch_error');
+              set({
+                isLoading: false,
+                error: 'Failed to fetch user data',
+                isAuthenticated: true, // User is authenticated but we couldn't fetch their data
+                session: data.session,
+              });
+              return { 
+                success: true, 
+                session: data.session,
+                error: 'User authenticated but failed to fetch user data'
+              };
             }
 
             if (!userData) {
               console.error('No user data found');
-              throw new AuthError('User not found', 'user_not_found');
+              set({
+                isLoading: false,
+                error: 'User not found',
+                isAuthenticated: true, // User is authenticated but we couldn't fetch their data
+                session: data.session,
+              });
+              return { 
+                success: true, 
+                session: data.session,
+                error: 'User authenticated but profile not found'
+              };
             }
 
             console.log('User data fetched successfully');
@@ -318,16 +380,27 @@ export const useAuthStore = create<AuthState>()(
             // Start session monitoring
             startSessionMonitoring();
 
-            return { user, session: data.session };
+            return { 
+              success: true,
+              user, 
+              session: data.session 
+            };
           } catch (error) {
             console.error('Login process error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+            
             set({
               isLoading: false,
-              error: error instanceof AuthError ? error.message : 'An unexpected error occurred',
+              error: errorMessage,
               isAuthenticated: false,
               user: null,
             });
-            throw error;
+            
+            // Return a structured error response instead of throwing
+            return {
+              success: false,
+              error: errorMessage
+            };
           }
         },
 
@@ -393,7 +466,7 @@ export const useAuthStore = create<AuthState>()(
             clearIntervals();
             
             // Sign out from Supabase
-            await supabase.auth.signOut();
+            await supabaseClient.auth.signOut();
             
             // Clear stored session
             clearStoredSession();
@@ -401,11 +474,15 @@ export const useAuthStore = create<AuthState>()(
             // Reset state
             set({
               user: null,
+              session: null,
               isAuthenticated: false,
               twoFactorRequired: false,
               error: null,
               lastActive: Date.now()
             });
+
+            console.log('Logout completed successfully');
+            return true;
           } catch (error) {
             console.error('Logout error:', error);
             if (error instanceof AuthError) {
@@ -413,6 +490,7 @@ export const useAuthStore = create<AuthState>()(
             } else {
               set({ error: 'An unexpected error occurred during logout' });
             }
+            return false;
           } finally {
             set({ isLoading: false });
           }
@@ -558,7 +636,7 @@ export const useAuthStore = create<AuthState>()(
             set({ isLoading: true, error: null });
 
             // Get current session
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await supabaseClient.auth.getSession();
             
             if (!session) {
               console.log('No session found during refresh');
@@ -569,7 +647,7 @@ export const useAuthStore = create<AuthState>()(
             console.log('Got session for user:', session.user.email);
 
             // Fetch user data
-            const { data: userData, error: userError } = await supabase
+            const { data: userData, error: userError } = await supabaseClient
               .from('users')
               .select('*, profiles(*)')
               .eq('id', session.user.id)
@@ -624,7 +702,7 @@ export const useAuthStore = create<AuthState>()(
               updated_at: new Date().toISOString()
             } satisfies Partial<DbUserUpdate>
 
-            const { error } = await supabase
+            const { error } = await supabaseClient
               .from('users')
               .update(updateData)
               .eq('id', user.id)

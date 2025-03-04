@@ -1,10 +1,11 @@
 'use client';
 
+import React, { Suspense } from 'react';
 import Image from 'next/image';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, XCircle } from 'lucide-react';
+import { AlertCircle, XCircle, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const authPages = {
@@ -30,11 +31,12 @@ const authPages = {
   },
 } as const;
 
-export default function AuthLayout({
-  children,
-}: {
+interface AuthLayoutProps {
   children: React.ReactNode;
-}) {
+}
+
+// Inner component that uses navigation hooks
+function AuthLayoutContent({ children }: AuthLayoutProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const pageInfo = authPages[pathname as keyof typeof authPages];
@@ -211,5 +213,18 @@ export default function AuthLayout({
         </div>
       </div>
     </div>
+  );
+}
+
+// Suspense wrapper for the layout
+export default function AuthLayout({ children }: AuthLayoutProps) {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <AuthLayoutContent>{children}</AuthLayoutContent>
+    </Suspense>
   );
 } 

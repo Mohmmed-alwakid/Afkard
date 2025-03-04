@@ -2,61 +2,85 @@ import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase-server';
 import { CreateStudyForm } from '@/components/studies/create-study-form';
+import { Suspense } from 'react';
+import { apiService } from '@/lib/api-services';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export const metadata: Metadata = {
-  title: 'Create New Study - Afkar',
-  description: 'Create a new research study on Afkar platform',
+  title: 'Create Study | Afkar',
+  description: 'Create a new study to collect valuable insights from users',
 };
 
-export default async function CreateStudyPage() {
-  // Create a Supabase client for server component
+async function NewStudyContent() {
   const supabase = createServerClient();
   
-  // Get the current user session
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  // If no session, redirect to login
+  // Get the current session
+  const { data: { session } } = await supabase.auth.getSession();
+  
   if (!session) {
     redirect('/login');
   }
-
-  // Get user profile with role information to check if they're a researcher
-  const { data: user } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', session.user.id)
-    .single();
-
-  // If user is not a researcher, redirect to home
-  if (user?.role !== 'researcher') {
+  
+  // Get user profile to check role
+  const userProfileResult = await apiService.getUserProfile(session.user.id, true);
+  if (!userProfileResult.data || userProfileResult.error) {
+    redirect('/login');
+  }
+  
+  const userProfile = userProfileResult.data;
+  
+  // Check if user is a researcher
+  if (userProfile.role !== 'researcher' && userProfile.role !== 'admin') {
     redirect('/home');
   }
+  
+  // Get user projects
+  const userProjectsResult = await apiService.getUserProjects(session.user.id, true);
+  const userProjects = userProjectsResult.data || [];
+  
+  // If no projects exist, redirect to create a project first
+  if (userProjects.length === 0) {
+    redirect('/projects/new?redirectAfter=studies/new');
+  }
+  
+  return (
+    <CreateStudyForm
+      userId={session.user.id}
+      userProjects={userProjects.map(project => ({
+        id: project.id,
+        title: project.title
+      }))}
+    />
+  );
+}
 
-  // Get user's projects for the dropdown
-  const { data: projects } = await supabase
-    .from('projects')
-    .select('id, name')
-    .eq('owner_id', session.user.id)
-    .order('name');
+export default function NewStudyPage() {
+  return (
+    <div className="container py-8">
+      <Suspense fallback={<StudyFormSkeleton />}>
+        <NewStudyContent />
+      </Suspense>
+    </div>
+  );
+}
 
+function StudyFormSkeleton() {
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-medium text-[#14142B] mb-2">
-          Create New Study
-        </h1>
-        <p className="text-[#666675]">
-          Set up your research study by filling out the details below
-        </p>
-      </div>
-
-      <div className="bg-white rounded-xl p-8">
-        <CreateStudyForm 
-          userId={session.user.id} 
-          projects={projects || []} 
-        />
+      <Skeleton className="h-8 w-60 mb-8" />
+      <div className="space-y-6">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-1/2" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-40 w-full" />
+        </div>
+        <div className="flex justify-end space-x-4">
+          <Skeleton className="h-10 w-24" />
+          <Skeleton className="h-10 w-24" />
+        </div>
       </div>
     </div>
   );

@@ -1,62 +1,56 @@
-import { Metadata } from 'next';
+'use client';
+
+import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlusIcon } from 'lucide-react';
-import { Overview } from '@/components/dashboard/overview';
-import { RecentActivity } from '@/components/dashboard/recent-activity';
-import { getServerSession } from 'next-auth';
-import { redirect } from 'next/navigation';
-import { createServerClient } from '@/lib/supabase-server';
+import { 
+  TypographyH1, 
+  TypographyH2, 
+  TypographyH3, 
+  TypographyP 
+} from '@/components/ui/typography';
 
-export const metadata: Metadata = {
-  title: 'Home - Afkar',
-  description: 'Your personalized Afkar home page',
-};
+interface UserProfile {
+  id: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  role: string;
+  avatar_url?: string;
+  created_at: string;
+  updated_at: string;
+}
 
-export default async function HomePage() {
-  // Create a Supabase client for server component
-  const supabase = createServerClient();
-  
-  // Get the current user session
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+interface HomePageClientProps {
+  userProfile: UserProfile;
+  userRole: 'researcher' | 'participant' | 'admin';
+  firstName: string;
+  hasProjects: boolean;
+}
 
-  // If no session, redirect to login
-  if (!session) {
-    redirect('/login');
-  }
+interface StatsCardProps {
+  title: string;
+  value: string | number;
+}
 
-  // Get user profile with role information
-  const { data: user } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', session.user.id)
-    .single();
+const StatsCard = ({ title, value }: StatsCardProps) => (
+  <div className="space-y-1">
+    <p className="text-sm text-muted-foreground">{title}</p>
+    <p className="text-2xl font-bold">{value}</p>
+  </div>
+);
 
-  const userRole = user?.role || 'participant';
-  const firstName = user?.first_name || 'User';
-  
-  // Check if researcher has projects
-  let hasProjects = false;
-  if (userRole === 'researcher') {
-    const { count } = await supabase
-      .from('projects')
-      .select('*', { count: 'exact', head: true })
-      .eq('owner_id', session.user.id);
-    
-    hasProjects = (count || 0) > 0;
-  }
-
+export function HomePageClient({ userProfile, userRole, firstName, hasProjects }: HomePageClientProps) {
   return (
     <div className="flex flex-col space-y-8">
       {/* Welcome Message */}
       <div className="text-center py-6">
-        <h1 className="text-2xl md:text-3xl font-medium text-[#14142B]">
+        <TypographyH1 className="text-2xl md:text-3xl font-medium text-[#14142B]">
           Welcome to Afkar Platform, {firstName} 🎉
-        </h1>
+        </TypographyH1>
       </div>
 
       {userRole === 'researcher' ? (
@@ -77,17 +71,17 @@ export default async function HomePage() {
                   />
                 </div>
                 
-                <h2 className="text-2xl font-semibold text-[#27273C] mb-4">
+                <TypographyH2 className="text-2xl font-semibold text-[#27273C] mb-4">
                   Get started by creating a project
-                </h2>
+                </TypographyH2>
                 
-                <p className="text-[#666675] mb-2">
+                <TypographyP className="text-[#666675] mb-2">
                   Currently you don&apos;t have any projects synced on your dashboard
-                </p>
+                </TypographyP>
                 
-                <p className="text-[#666675] mb-10">
+                <TypographyP className="text-[#666675] mb-10">
                   Let&apos;s add some data and create a new project
-                </p>
+                </TypographyP>
                 
                 <Button 
                   asChild
@@ -102,9 +96,9 @@ export default async function HomePage() {
             ) : (
               <div className="flex flex-col space-y-6">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-semibold text-[#14142B]">
+                  <TypographyH2 className="text-xl font-semibold text-[#14142B]">
                     Your Projects
-                  </h2>
+                  </TypographyH2>
                   <Button 
                     asChild
                     className="bg-[#212280] hover:bg-[#1a1c6b] text-white rounded-full py-4 px-7"
@@ -117,9 +111,9 @@ export default async function HomePage() {
                 </div>
                 
                 {/* Project cards would go here */}
-                <p className="text-[#666675]">
+                <TypographyP className="text-[#666675]">
                   View your <Link href="/projects" className="text-[#212280] underline">project dashboard</Link> to manage all your projects.
-                </p>
+                </TypographyP>
               </div>
             )}
           </div>
@@ -129,9 +123,9 @@ export default async function HomePage() {
             <div className="bg-white rounded-3xl p-8 md:p-12">
               <div className="flex flex-col space-y-6">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-semibold text-[#14142B]">
+                  <TypographyH2 className="text-xl font-semibold text-[#14142B]">
                     Your Studies
-                  </h2>
+                  </TypographyH2>
                   <Button 
                     asChild
                     className="bg-[#212280] hover:bg-[#1a1c6b] text-white rounded-full py-4 px-7"
@@ -145,9 +139,9 @@ export default async function HomePage() {
                 
                 {/* No studies yet message */}
                 <div className="py-8 flex flex-col items-center justify-center text-center">
-                  <p className="text-[#666675] mb-6">
+                  <TypographyP className="text-[#666675] mb-6">
                     You haven&apos;t created any studies yet. Create a study to start collecting insights.
-                  </p>
+                  </TypographyP>
                   <Button 
                     asChild
                     className="bg-[#212280] hover:bg-[#1a1c6b] text-white rounded-full"
@@ -167,12 +161,12 @@ export default async function HomePage() {
               {/* Header */}
               <div className="flex justify-between items-start">
                 <div className="space-y-2">
-                  <h2 className="text-base font-semibold text-[#14142B]">
+                  <TypographyH2 className="text-base font-semibold text-[#14142B]">
                     Create Afkar Template
-                  </h2>
-                  <p className="text-sm text-[#9595A0]">
+                  </TypographyH2>
+                  <TypographyP className="text-sm text-[#9595A0]">
                     Choose from our pre-built afkar templates or create your own maze from the ground up.
-                  </p>
+                  </TypographyP>
                 </div>
                 
                 <Button 
@@ -193,9 +187,9 @@ export default async function HomePage() {
                     className="bg-[#F7F7FC] rounded-xl p-4 flex flex-col items-center"
                   >
                     <div className="w-full h-36 bg-gray-200 rounded-lg mb-4"></div>
-                    <p className="font-medium text-[#303044] text-center">
+                    <TypographyP className="font-medium text-[#303044] text-center">
                       Usability testing a new product
-                    </p>
+                    </TypographyP>
                   </div>
                 ))}
               </div>
@@ -208,9 +202,9 @@ export default async function HomePage() {
           {/* Active Studies */}
           <div className="bg-white rounded-3xl p-8 md:p-12">
             <div className="flex flex-col space-y-6">
-              <h2 className="text-xl font-semibold text-[#14142B]">
+              <TypographyH2 className="text-xl font-semibold text-[#14142B]">
                 Active Studies
-              </h2>
+              </TypographyH2>
               
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {/* Empty state for no studies */}
@@ -225,13 +219,13 @@ export default async function HomePage() {
                     />
                   </div>
                   
-                  <h3 className="text-xl font-semibold text-[#27273C] mb-4">
+                  <TypographyH3 className="text-xl font-semibold text-[#27273C] mb-4">
                     No active studies yet
-                  </h3>
+                  </TypographyH3>
                   
-                  <p className="text-[#666675] mb-8 max-w-md">
+                  <TypographyP className="text-[#666675] mb-8 max-w-md">
                     You don&apos;t have any active studies at the moment. Check back later or explore available studies.
-                  </p>
+                  </TypographyP>
                   
                   <Button 
                     asChild
@@ -254,22 +248,10 @@ export default async function HomePage() {
                 <CardTitle>Your Stats</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Completed Studies</p>
-                  <p className="text-2xl font-bold">0</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Total Rewards</p>
-                  <p className="text-2xl font-bold">$0</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Feedback Given</p>
-                  <p className="text-2xl font-bold">0</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Response Rate</p>
-                  <p className="text-2xl font-bold">0%</p>
-                </div>
+                <StatsCard title="Completed Studies" value="0" />
+                <StatsCard title="Total Rewards" value="$0" />
+                <StatsCard title="Feedback Given" value="0" />
+                <StatsCard title="Response Rate" value="0%" />
               </CardContent>
             </Card>
             
@@ -280,7 +262,7 @@ export default async function HomePage() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <p className="text-muted-foreground">No recent activity</p>
+                  <TypographyP className="text-muted-foreground">No recent activity</TypographyP>
                 </div>
               </CardContent>
             </Card>
@@ -290,8 +272,8 @@ export default async function HomePage() {
       
       {/* Explore Section - Common for both roles */}
       <div className="mt-10">
-        <h2 className="text-lg font-semibold text-[#27273C] mb-2">Explore Afkar</h2>
-        <p className="text-[#535364]">Elevate your research by learning the basics, and access advanced tips and resources</p>
+        <TypographyH2 className="text-lg font-semibold text-[#27273C] mb-2">Explore Afkar</TypographyH2>
+        <TypographyP className="text-[#535364]">Elevate your research by learning the basics, and access advanced tips and resources</TypographyP>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
           <Card>
@@ -299,7 +281,7 @@ export default async function HomePage() {
               <CardTitle>Help Center</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground mb-6">Find answers to commonly asked questions and learn how to use Afkar effectively.</p>
+              <TypographyP className="text-muted-foreground mb-6">Find answers to commonly asked questions and learn how to use Afkar effectively.</TypographyP>
               <Link href="/help" className="text-sm font-semibold underline text-[#14142B]">
                 Visit Help Center
               </Link>
@@ -311,7 +293,7 @@ export default async function HomePage() {
               <CardTitle>Research Resources</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground mb-6">Access research methodologies, templates, and best practices to improve your studies.</p>
+              <TypographyP className="text-muted-foreground mb-6">Access research methodologies, templates, and best practices to improve your studies.</TypographyP>
               <Link href="/resources" className="text-sm font-semibold underline text-[#14142B]">
                 Explore Resources
               </Link>

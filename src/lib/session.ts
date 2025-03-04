@@ -3,8 +3,9 @@ import { ConcurrentSessionError, SessionExpiredError } from './errors'
 import { AUTH_COOKIE_NAME, SESSION_EXPIRY } from '@/config/auth.config'
 import { SessionSchema } from '@/config/auth.config'
 import { handleAuthError } from '@/lib/auth-errors'
+import { log } from '@/lib/utils'
 
-const SESSION_KEY = 'afkar_auth_token'
+const SESSION_KEY = 'session'
 const DEVICE_ID_KEY = 'afkar_device_id'
 const LAST_ACTIVE_KEY = 'afkar_last_active'
 const SESSION_EXPIRY_BUFFER = 5 * 60 * 1000 // 5 minutes in milliseconds
@@ -40,214 +41,152 @@ async function retry<T>(
   }
 }
 
-// Cookie utility functions
-function setCookie(name: string, value: string, expiresInMs: number) {
-  const expires = new Date();
-  expires.setTime(expires.getTime() + expiresInMs);
-  
-  // For localhost development
-  if (window.location.hostname === 'localhost') {
-    document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
-    
-    // Set additional cookie for cross-port access
-    if (window.location.port === '3000' || window.location.port === '3001') {
-      document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/; domain=localhost; SameSite=Lax`;
-    }
-  } else {
-    // Production settings
-    document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/; SameSite=Strict; secure`;
-  }
-  
-  console.log('🍪 Setting cookie:', {
-    name,
-    value: value.substring(0, 10) + '...',
-    expires: expires.toUTCString(),
-    domain: window.location.hostname,
-    port: window.location.port
-  });
+interface CookieOptions {
+  path?: string
+  domain?: string
+  maxAge?: number
+  httpOnly?: boolean
+  secure?: boolean
+  sameSite?: 'strict' | 'lax' | 'none'
+  expires?: Date
 }
 
-function getCookie(name: string): string | null {
+export const setCookie = (name: string, value: string, options: CookieOptions = {}) => {
+  const cookieStr = `${name}=${encodeURIComponent(value)}`
+  const optionsStr = Object.entries(options)
+    .map(([key, value]) => {
+      if (value === true) return key
+      if (value === false) return ''
+      if (value instanceof Date) return `${key}=${value.toUTCString()}`
+      return `${key}=${value}`
+    })
+    .filter(Boolean)
+    .join('; ')
+
+  document.cookie = optionsStr ? `${cookieStr}; ${optionsStr}` : cookieStr
+}
+
+export const getCookie = (name: string): string | undefined => {
+  const cookies = document.cookie.split(';')
+  const cookie = cookies.find(c => c.trim().startsWith(`${name}=`))
+  return cookie ? decodeURIComponent(cookie.split('=')[1]) : undefined
+}
+
+export const deleteCookie = (name: string, options: CookieOptions = {}) => {
+  setCookie(name, '', { ...options, maxAge: -1 })
+}
+
+export const safeParseJSON = <T>(jsonString: string | null | undefined, defaultValue: T): T => {
+  if (!jsonString || jsonString.trim() === '') {
+    return defaultValue;
+  }
+  
   try {
-    const cookies = document.cookie.split(';').map(c => c.trim());
-    const cookie = cookies.find(c => c.startsWith(`${name}=`));
-    const value = cookie ? cookie.split('=')[1] : null;
-    
-    console.log('🔍 Getting cookie:', {
-      name,
-      found: !!value,
-      value: value ? value.substring(0, 10) + '...' : null
-    });
-    
-    return value;
+    return JSON.parse(jsonString) as T;
   } catch (error) {
-    console.error('❌ Error getting cookie:', error);
+    console.error('Error parsing JSON:', error);
+    return defaultValue;
+  }
+};
+
+export function storeSession(session: Session | null): void {
+  if (!session) {
+    clearSession();
+    return;
+  }
+
+  try {
+    // Validate session before storing
+    if (!session.access_token || !session.expires_at) {
+      console.error('Invalid session data:', session);
+      return;
+    }
+
+    // Store in localStorage
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+
+    // Store in cookie with proper options
+    const cookieOptions: CookieOptions = {
+      expires: new Date((session.expires_at || 0) * 1000),
+      path: '/',
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production'
+    };
+    
+    setCookie(SESSION_KEY, JSON.stringify(session), cookieOptions);
+    console.log('Session stored successfully');
+  } catch (error) {
+    console.error('Error storing session:', error);
+  }
+}
+
+export function getStoredSession(): Session | null {
+  try {
+    // Try localStorage first with safe parsing
+    const storedSession = localStorage.getItem(SESSION_KEY);
+    if (storedSession && storedSession.trim() !== '') {
+      const session = safeParseJSON<Session | null>(storedSession, null);
+      if (session && session.access_token && session.expires_at && session.expires_at * 1000 > Date.now()) {
+        return session;
+      } else if (session) {
+        // Session exists but is invalid or expired - clean it up
+        localStorage.removeItem(SESSION_KEY);
+      }
+    }
+
+    // Try cookie next with safe parsing
+    const cookies = document.cookie.split(';');
+    const sessionCookie = cookies.find(cookie => cookie.trim().startsWith(`${SESSION_KEY}=`));
+    if (sessionCookie) {
+      const cookieValue = sessionCookie.split('=')[1];
+      if (cookieValue && cookieValue.trim() !== '') {
+        const session = safeParseJSON<Session | null>(decodeURIComponent(cookieValue), null);
+        if (session && session.access_token && session.expires_at && session.expires_at * 1000 > Date.now()) {
+          // Valid session from cookie - also save to localStorage for consistency
+          localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+          return session;
+        } else {
+          // Invalid session in cookie - clean it up
+          deleteCookie(SESSION_KEY);
+        }
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error getting session:', error);
+    // In case of any error, clean up potentially corrupted session data
+    try {
+      localStorage.removeItem(SESSION_KEY);
+      deleteCookie(SESSION_KEY);
+    } catch (cleanupError) {
+      console.error('Error cleaning up session:', cleanupError);
+    }
     return null;
   }
 }
 
-function deleteCookie(name: string) {
+export function clearSession(): void {
   try {
-    if (window.location.hostname === 'localhost') {
-      // Clear cookie without domain
-      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax`;
-      
-      // Clear cookie with localhost domain
-      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=localhost; SameSite=Lax`;
-    } else {
-      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict; secure`;
-    }
+    // Clear localStorage
+    localStorage.removeItem(SESSION_KEY);
+
+    // Clear cookie with proper options
+    const cookieOptions: CookieOptions = {
+      path: '/',
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production'
+    };
     
-    console.log('🗑️ Deleted cookie:', name);
+    deleteCookie(SESSION_KEY, cookieOptions);
+    console.log('Session cleared successfully');
   } catch (error) {
-    console.error('❌ Error deleting cookie:', error);
+    console.error('Error clearing session:', error);
   }
 }
 
-export const storeSession = async (session: Session, rememberMe: boolean = false): Promise<void> => {
-  try {
-    // Validate session data
-    const result = SessionSchema.safeParse(session);
-    if (!result.success) {
-      console.error('❌ Session validation failed:', result.error.errors);
-      throw new Error('Invalid session data: ' + result.error.errors.map(e => e.message).join(', '));
-    }
-
-    await retry(async () => {
-      console.log('🔍 Storing session...');
-      
-      // Store session in localStorage
-      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-      localStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
-
-      // Set the auth cookie with proper domain for cross-port access
-      setCookie(AUTH_COOKIE_NAME, session.access_token, SESSION_EXPIRY);
-      console.log('✅ Auth cookie set:', {
-        name: AUTH_COOKIE_NAME,
-        value: session.access_token.substring(0, 10) + '...',
-        expires: new Date(Date.now() + SESSION_EXPIRY).toISOString()
-      });
-
-      // Generate and store device ID if not exists
-      if (!localStorage.getItem(DEVICE_ID_KEY)) {
-        localStorage.setItem(DEVICE_ID_KEY, crypto.randomUUID());
-      }
-
-      // Store remember me preference
-      if (rememberMe) {
-        localStorage.setItem('rememberMe', 'true');
-      }
-
-      // Update last active timestamp
-      await updateLastActive();
-
-      // Broadcast session change
-      broadcastSessionChange('session_updated', {
-        session,
-        metadata: {
-          deviceId: localStorage.getItem(DEVICE_ID_KEY) || '',
-          lastActive: Date.now(),
-          rememberMe
-        }
-      });
-      
-      console.log('✅ Session stored successfully');
-    });
-  } catch (error) {
-    console.error('❌ Error storing session:', error);
-    const authError = handleAuthError(error);
-    await clearStoredSession();
-    throw authError;
-  }
-}
-
-export const getStoredSession = async (): Promise<Session | null> => {
-  try {
-    return await retry(async () => {
-      console.log('🔍 Checking session storage...');
-      
-      // Check cookie first
-      const cookieToken = getCookie(AUTH_COOKIE_NAME);
-      if (!cookieToken) {
-        console.log('❌ No auth cookie found');
-        await clearStoredSession();
-        return null;
-      }
-      console.log('✅ Found auth cookie');
-
-      // Check localStorage
-      const sessionStr = localStorage.getItem(SESSION_KEY);
-      if (!sessionStr) {
-        console.log('❌ No session found in localStorage');
-        await clearStoredSession();
-        return null;
-      }
-      console.log('✅ Found session in localStorage');
-
-      let session: Session;
-      try {
-        session = JSON.parse(sessionStr);
-      } catch (e) {
-        console.error('❌ Failed to parse stored session:', e);
-        await clearStoredSession();
-        return null;
-      }
-
-      // Validate session data
-      const result = SessionSchema.safeParse(session);
-      if (!result.success) {
-        console.error('❌ Session validation failed:', result.error.errors);
-        await clearStoredSession();
-        return null;
-      }
-
-      // Verify cookie matches session
-      if (cookieToken !== session.access_token) {
-        console.error('❌ Cookie token mismatch');
-        await clearStoredSession();
-        return null;
-      }
-
-      // Check session validity
-      if (!isValidSession(session)) {
-        console.log('❌ Session invalid, clearing stored session');
-        await clearStoredSession();
-        return null;
-      }
-
-      return session;
-    });
-  } catch (error) {
-    console.error('❌ Error getting stored session:', error);
-    const authError = handleAuthError(error);
-    await clearStoredSession();
-    throw authError;
-  }
-}
-
-export const clearStoredSession = async (): Promise<void> => {
-  try {
-    await retry(async () => {
-      console.log('🔍 Clearing session...');
-      
-      // Clear localStorage items
-      localStorage.removeItem(SESSION_KEY);
-      localStorage.removeItem(LAST_ACTIVE_KEY);
-      localStorage.removeItem('rememberMe');
-      
-      // Clear the cookie with proper domain
-      deleteCookie(AUTH_COOKIE_NAME);
-      
-      console.log('✅ Session cleared successfully');
-      
-      // Broadcast session cleared
-      broadcastSessionChange('session_cleared');
-    });
-  } catch (error) {
-    console.error('❌ Error clearing session:', error);
-    throw handleAuthError(error);
-  }
-}
+// Add this alias for backward compatibility
+export const clearStoredSession = clearSession;
 
 export const updateLastActive = async (): Promise<void> => {
   try {

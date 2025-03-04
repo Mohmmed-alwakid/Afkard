@@ -6,7 +6,8 @@ import {
   useEffect, 
   useCallback, 
   useRef, 
-  useMemo 
+  useMemo,
+  Suspense 
 } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuthStore } from "@/store/auth-store"
@@ -18,9 +19,40 @@ import { ErrorBoundary } from 'react-error-boundary'
 import { Button } from "@/components/ui/button"
 import { AUTH_CONFIG, URL_CONFIG } from "@/config/auth.config"
 
+// Configuration constants
 const DEBUG = process.env.NODE_ENV === 'development';
+const SESSION_EXPIRY_BUFFER = 15 * 60 * 1000; // 15 minutes in milliseconds
 
+// Logging helper for conditional logging
+const logDebug = (...args: any[]) => {
+  if (DEBUG) {
+    console.log(...args);
+  }
+};
+
+// Error logging helper
+const logError = (message: string, error: any) => {
+  if (DEBUG) {
+    console.error(`❌ ${message}:`, error);
+  } else {
+    // In production, avoid logging sensitive information
+    console.error(`❌ ${message}`);
+  }
+};
+
+// Type definitions
 type UserRole = 'researcher' | 'participant' | 'admin';
+
+interface UserProfile {
+  id: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  role: UserRole;
+  avatar_url?: string;
+  created_at: string;
+  updated_at: string;
+}
 
 type RouteAccess = 'public' | 'private' | 'restricted';
 
@@ -36,7 +68,7 @@ const ROUTE_CONFIG: Record<string, RouteConfig> = {
     path: '/',
     roles: [],
     access: 'public',
-    redirectTo: '/dashboard'
+    redirectTo: undefined
   },
   '/login': {
     path: '/login',
@@ -55,10 +87,24 @@ const ROUTE_CONFIG: Record<string, RouteConfig> = {
     roles: ['participant', 'researcher', 'admin'],
     access: 'private',
     redirectTo: '/login'
+  },
+  '/home': {
+    path: '/home',
+    roles: ['participant', 'researcher', 'admin'],
+    access: 'private',
+    redirectTo: '/login'
   }
 } as const;
 
-const publicPaths = ['/login', '/signup', '/reset-password', '/verify', '/'];
+const publicPaths = ['/login', '/signup', '/reset-password', '/verify', '/', '/about', '/contact', '/terms'];
+const authPaths = ['/login', '/signup', '/reset-password', '/verify', '/callback'];
+
+// Route paths - CRITICAL FIX: Use correct URL paths (not route group paths)
+const dashboardPaths = {
+  home: "/home",
+  researcher: "/researcher",
+  admin: "/admin"
+};
 
 interface RetryConfig {
   maxAttempts: number;
@@ -135,6 +181,18 @@ function validateRouteAccess(
   isAuthenticated: boolean,
   userRole?: UserRole
 ): { isAllowed: boolean; redirectTo?: string } {
+  // Special case for the root path - allow it, but redirect authenticated users to dashboard
+  if (pathname === '/') {
+    if (isAuthenticated) {
+      console.log('Authenticated user on root path, redirecting to dashboard');
+      return { 
+        isAllowed: false, 
+        redirectTo: userRole === 'researcher' ? '/researcher' : '/dashboard' 
+      };
+    }
+    return { isAllowed: true };
+  }
+
   // Handle static assets and API routes
   if (pathname.startsWith('/_next') || pathname.startsWith('/api')) {
     return { isAllowed: true };
@@ -207,7 +265,7 @@ const isSessionExpired = (session: Session | null, buffer = 0): boolean => {
   const now = new Date();
   const timeUntilExpiry = expiresAt.getTime() - now.getTime();
   
-  console.log('🕒 Session expiry check:', {
+  logDebug('🕒 Session expiry check:', {
     expiresAt: expiresAt.toISOString(),
     now: now.toISOString(),
     timeUntilExpiry: Math.floor(timeUntilExpiry / 1000) + 's',
@@ -268,7 +326,7 @@ function ClientAuthProvider({ children }: AuthProviderProps) {
 
   // Handle client-side mounting
   useEffect(() => {
-    console.log('Auth Provider mounted')
+    logDebug('Auth Provider mounted')
     setIsMounted(true)
     return () => {
       if (initializationTimeout.current) {
@@ -279,7 +337,7 @@ function ClientAuthProvider({ children }: AuthProviderProps) {
 
   // Update session refresh with retry logic
   const refreshWithRetry = useCallback(async () => {
-    console.log('Starting session refresh');
+    logDebug('Starting session refresh');
     let timeoutId: NodeJS.Timeout;
 
     try {
@@ -311,7 +369,7 @@ function ClientAuthProvider({ children }: AuthProviderProps) {
       const result = await Promise.race([refreshPromise, timeoutPromise]);
       return result;
     } catch (error) {
-      console.error('Session refresh failed:', error);
+      logError('Session refresh failed', error);
       throw error;
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
@@ -323,13 +381,24 @@ function ClientAuthProvider({ children }: AuthProviderProps) {
     event: 'SIGNED_IN' | 'SIGNED_OUT' | 'TOKEN_REFRESHED',
     session: Session | null
   ) => {
-    console.log('Auth state changed:', event, !!session);
+    logDebug('Auth state changed:', event, !!session);
+    console.log(`🔐 Auth state change: ${event}`, { 
+      hasSession: !!session,
+      email: session?.user?.email,
+      path: pathname 
+    });
     
     if (!session) {
-      console.log('No session in auth change, logging out');
-      await logout();
+      logDebug('No session in auth change, signing out');
+      console.log('⚠️ No session detected in auth change event');
+      
+      // Only direct to login if this is a sign-out event and user is not on a public path
+      if (event === 'SIGNED_OUT' && !publicPaths.includes(pathname) && !authPaths.includes(pathname)) {
+        console.log('📤 User signed out, redirecting to login');
+        router.push('/login');
+      }
+      
       setLoadingState('idle');
-      router.push('/login');
       return;
     }
 
@@ -338,37 +407,56 @@ function ClientAuthProvider({ children }: AuthProviderProps) {
       
       // Check session expiration with buffer
       if (isSessionExpired(session, SESSION_EXPIRY_BUFFER)) {
-        console.log('⚠️ Session expired or about to expire, logging out');
-        await logout();
-        router.push('/login');
+        logDebug('⚠️ Session expired or about to expire, logging out');
+        console.log('⚠️ Session expired, logging out user');
+        
+        if (typeof logout === 'function') {
+          await logout();
+        } else {
+          // Fallback if logout is not available
+          await supabase.auth.signOut();
+        }
+        
+        // Only redirect to login if not on a public path or auth path
+        if (!publicPaths.includes(pathname) && !authPaths.includes(pathname)) {
+          router.push('/login');
+        }
         return;
       }
 
       // Get user role from session
       const role = session.user?.user_metadata?.role || 'participant';
-      console.log('User role:', role);
+      logDebug('User role:', role);
 
-      // Refresh session if needed
-      if (shouldRefreshSession(session)) {
-        console.log('🔄 Session needs refresh');
-        await refreshWithRetry();
+      // If this is a SIGNED_IN event, consider redirecting to appropriate dashboard
+      if (event === 'SIGNED_IN') {
+        logDebug(`User signed in with session`, { session: !!session, email: session?.user?.email });
+        
+        // Get user role from session
+        const role = session.user?.user_metadata?.role || 'participant';
+        logDebug(`User role: ${role}`);
+        
+        // Only redirect if on public or auth paths
+        if (publicPaths.includes(pathname) || authPaths.includes(pathname)) {
+          // Always use the unified dashboard path
+          const dashboardPath = '/dashboard';
+          logDebug(`Redirecting to ${dashboardPath} after sign-in`);
+          console.log('🚀 Redirecting user after sign in to:', dashboardPath);
+          
+          // CRITICAL FIX: Use window.location.href instead of router.push to avoid ReferenceError
+          window.location.href = dashboardPath;
+          return;
+        }
       }
 
-      // Handle redirects based on current route and role
-      const { isAllowed, redirectTo } = validateRouteAccess(pathname, true, role as UserRole);
-      if (!isAllowed && redirectTo) {
-        console.log('Redirecting to:', redirectTo);
-        router.replace(redirectTo);
-      }
-
+      // Allow route access check to happen naturally
       setLoadingState('idle');
     } catch (error) {
-      console.error('Auth change handler failed:', error);
-      await logout();
+      logError('Auth change handler error', error);
+      console.error('❌ Error in auth change handler:', error);
       setLoadingState('idle');
-      router.push('/login');
     }
-  }, [refreshWithRetry, pathname, router, logout]);
+  }, [logout, pathname, publicPaths, authPaths]);
 
   // Listen for auth state changes
   useEffect(() => {
@@ -385,16 +473,19 @@ function ClientAuthProvider({ children }: AuthProviderProps) {
     const initAuth = async () => {
       if (!isSubscribed) return;
 
-      console.log('Initializing auth state');
+      logDebug('Initializing auth state');
       try {
         setLoadingState('initializing');
 
         // Set initialization timeout
         initTimeoutId = setTimeout(() => {
           if (isSubscribed) {
-            console.log('Auth initialization timed out');
+            logDebug('Auth initialization timed out');
             setLoadingState('idle');
-            router.push('/login');
+            // Only redirect if not on a public path
+            if (!publicPaths.includes(pathname)) {
+              router.push('/login');
+            }
           }
         }, 10000);
 
@@ -403,16 +494,19 @@ function ClientAuthProvider({ children }: AuthProviderProps) {
         if (error) throw error;
         
         if (session) {
-          console.log('Initial session found:', session.user?.email);
+          logDebug('Initial session found:', session.user?.email);
           await handleAuthChange('SIGNED_IN', session);
         } else {
-          console.log('No initial session');
+          logDebug('No initial session');
           setLoadingState('idle');
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        logError('Error initializing auth', error);
         setLoadingState('idle');
-        router.push('/login');
+        // Only redirect if not on a public path
+        if (!publicPaths.includes(pathname)) {
+          router.push('/login');
+        }
       } finally {
         if (initTimeoutId) clearTimeout(initTimeoutId);
       }
@@ -421,7 +515,7 @@ function ClientAuthProvider({ children }: AuthProviderProps) {
     initAuth();
 
     return () => {
-      console.log('Cleaning up auth subscriptions');
+      logDebug('Cleaning up auth subscriptions');
       isSubscribed = false;
       if (initTimeoutId) clearTimeout(initTimeoutId);
       subscription.unsubscribe();
@@ -437,42 +531,51 @@ function ClientAuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        console.log('🔍 Checking session state...');
+        logDebug('🔍 Checking session state...');
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) throw error;
         
         if (session) {
-          console.log('✅ Session found:', {
+          logDebug('✅ Session found:', {
             user: session.user?.email,
             role: session.user?.user_metadata?.role
           });
           
           if (isSessionExpired(session)) {
-            console.log('⚠️ Session expired, logging out');
+            logDebug('⚠️ Session expired, logging out');
             await logout();
-            router.push('/login');
+            // Only redirect if not on a public path
+            if (!publicPaths.includes(pathname)) {
+              router.push('/login');
+            }
             return;
           }
           
           if (!isAuthenticated) {
-            console.log('🔄 Active session found but not authenticated, refreshing');
+            logDebug('🔄 Active session found but not authenticated, refreshing');
             await handleAuthChange('SIGNED_IN', session);
           }
         } else {
-          console.log('❌ No session found');
+          logDebug('❌ No session found');
           if (isAuthenticated) {
-            console.log('⚠️ No session but authenticated state exists, logging out');
+            logDebug('⚠️ No session but authenticated state exists, logging out');
             await logout();
-            router.push('/login');
+            // Only redirect if not on a public path
+            if (!publicPaths.includes(pathname)) {
+              router.push('/login');
+            }
           }
         }
         
         setSessionChecked(true);
       } catch (error) {
-        console.error('❌ Session check failed:', error);
+        logError('Session check failed', error);
         await logout();
-        router.push('/login');
+        // Only redirect if not on a public path
+        if (!publicPaths.includes(pathname)) {
+          router.push('/login');
+        }
       }
     };
 
@@ -487,26 +590,35 @@ function ClientAuthProvider({ children }: AuthProviderProps) {
 
     const checkRouteAccess = async () => {
       try {
+        // Skip checks for public paths
+        if (publicPaths.includes(pathname)) {
+          return;
+        }
+
         // Check session first
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session && isSessionExpired(session)) {
-          console.log('⚠️ Session expired during route check, logging out');
+          logDebug('⚠️ Session expired during route check, logging out');
           await logout();
-          router.push('/login');
+          if (!publicPaths.includes(pathname)) {
+            router.push('/login');
+          }
           return;
         }
 
         const { isAllowed, redirectTo } = validateCurrentRoute();
         
         if (!isAllowed && redirectTo) {
-          console.log('🚫 Route access denied, redirecting to:', redirectTo);
+          logDebug('🚫 Route access denied, redirecting to:', redirectTo);
           setLoadingState('redirecting');
           router.replace(redirectTo);
         }
       } catch (error) {
-        console.error('❌ Route protection check failed:', error);
-        router.push('/login');
+        logError('Route protection check failed', error);
+        if (!publicPaths.includes(pathname)) {
+          router.push('/login');
+        }
       }
     };
 
@@ -521,7 +633,7 @@ function ClientAuthProvider({ children }: AuthProviderProps) {
       try {
         await refreshWithRetry();
       } catch (error) {
-        console.error('Failed to refresh session:', error);
+        logError('Failed to refresh session', error);
       }
     }, AUTH_CONFIG.SESSION.REFRESH_INTERVAL);
 
@@ -554,7 +666,15 @@ function ClientAuthProvider({ children }: AuthProviderProps) {
   );
 }
 
-// Export a server component wrapper
-export function AuthProvider(props: AuthProviderProps) {
-  return <ClientAuthProvider {...props} />
+// Main exported component with Suspense
+export function AuthProvider({ children }: AuthProviderProps) {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-primary"></div>
+      </div>
+    }>
+      <ClientAuthProvider>{children}</ClientAuthProvider>
+    </Suspense>
+  );
 }

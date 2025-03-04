@@ -1,14 +1,11 @@
-import React from "react"
+'use client';
+
+import React, { Suspense } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { LanguageSwitcher } from "@/components/language-switcher"
-import { Metadata } from "next"
+import { Loader2 } from "lucide-react"
 import { ResetPasswordContent } from "./reset-password-content"
-
-export const metadata: Metadata = {
-  title: "Reset Password | Afkar",
-  description: "Reset your Afkar account password",
-}
 
 export default function ResetPasswordPage() {
   return (
@@ -33,15 +30,23 @@ export default function ResetPasswordPage() {
             <div className="w-full max-w-md space-y-8">
               <div className="space-y-2">
                 <h1 className="text-3xl font-semibold tracking-tight text-gray-900">
-                  Set new password
+                  Reset your password
                 </h1>
                 <p className="text-gray-600">
-                  Your new password must be different from previous passwords
+                  Enter your new password below
                 </p>
               </div>
-              
-              <ResetPasswordContent />
-              
+
+              <Suspense 
+                fallback={
+                  <div className="flex items-center justify-center py-10">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                }
+              >
+                <ResetPasswordContent />
+              </Suspense>
+
               <div className="text-center">
                 <p className="text-sm text-gray-600">
                   <Link href="/login" className="text-[#6A55FF] font-semibold hover:underline inline-flex items-center">
@@ -95,37 +100,13 @@ export default function ResetPasswordPage() {
       {/* Right Section - Gradient Background with Content */}
       <div className="hidden bg-gradient-to-br from-[#6A55FF] to-gray-600 lg:flex lg:w-1/2 relative">
         <div className="absolute inset-0 flex flex-col items-center justify-center px-24 text-white">
-          <div className="mb-8">
-            <div className="relative w-20 h-20">
-              <div className="absolute top-0 left-0 w-6 h-6 bg-yellow-300 rounded-full"></div>
-              <div className="absolute top-4 right-0 w-4 h-4 bg-yellow-300 rounded-full"></div>
-            </div>
-          </div>
-          
           <div className="text-center space-y-6">
             <h2 className="text-5xl font-medium tracking-tight leading-tight">
-              Research simplified for everyone
+              Secure your account with a strong password.
             </h2>
             <p className="text-lg font-medium text-gray-200">
-              Connect with participants and conduct research seamlessly
+              Choose a password that's hard for others to guess but easy for you to remember.
             </p>
-          </div>
-
-          <div className="mt-8 flex items-center">
-            <div className="flex -space-x-3">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div 
-                  key={i}
-                  className="relative w-10 h-10 rounded-full border-2 border-white overflow-hidden"
-                  style={{ zIndex: 6 - i }}
-                >
-                  <div className={`absolute inset-0 bg-purple-${i}00`}></div>
-                </div>
-              ))}
-            </div>
-            <span className="ml-4 text-gray-200 text-md">
-              Join thousands of researchers
-            </span>
           </div>
         </div>
       </div>

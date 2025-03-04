@@ -1,3 +1,5 @@
+"use client"
+
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
@@ -32,18 +34,28 @@ interface DialogProps extends React.ComponentPropsWithoutRef<typeof DialogPrimit
   isRTL?: boolean
 }
 
-const Dialog = ({ children, ...props }: DialogProps) => (
-  <DialogPrimitive.Root {...props}>
-    {children}
-  </DialogPrimitive.Root>
-)
-Dialog.displayName = DialogPrimitive.Root.displayName
+const Dialog = DialogPrimitive.Root
 
 const DialogTrigger = DialogPrimitive.Trigger
 
 const DialogPortal = DialogPrimitive.Portal
 
 const DialogClose = DialogPrimitive.Close
+
+const DialogOverlay = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Overlay>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Overlay
+    ref={ref}
+    className={cn(
+      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      className
+    )}
+    {...props}
+  />
+))
+DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
 interface DialogContentProps
   extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>,
@@ -58,7 +70,7 @@ const DialogContent = React.forwardRef<
   DialogContentProps
 >(({ className, children, size, isRTL, ...props }, ref) => (
   <DialogPortal>
-    <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+    <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(dialogVariants({ size, isRTL }), className)}
@@ -132,8 +144,9 @@ DialogDescription.displayName = DialogPrimitive.Description.displayName
 export {
   Dialog,
   DialogPortal,
-  DialogTrigger,
+  DialogOverlay,
   DialogClose,
+  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogFooter,
