@@ -22,6 +22,22 @@ import { useProjectStore } from "@/store/project-store"
 import { useTranslations } from "@/hooks/use-translations"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { useState } from 'react';
+import Image from 'next/image';
+import { Input } from '@/components/ui/input';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { 
+  SearchIcon, 
+  FilterIcon, 
+  MoreHorizontal,
+  Eye,
+  ArrowUpDown
+} from 'lucide-react';
 
 export default function ProjectsPage() {
   const { t, isRTL } = useTranslations()
@@ -29,6 +45,7 @@ export default function ProjectsPage() {
   const [showNewProjectModal, setShowNewProjectModal] = React.useState(false)
   const [selectedProjectId, setSelectedProjectId] = React.useState<string | null>(null)
   const { projects, addStudy } = useProjectStore()
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleAddStudy = (projectId: string, type: "test" | "interview") => {
     addStudy(projectId, {
@@ -37,6 +54,11 @@ export default function ProjectsPage() {
       status: "draft",
     })
   }
+
+  // Handler for deleting a project
+  const handleDeleteProject = (id: string) => {
+    // Implement the logic to delete the project from the projects state
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -87,6 +109,26 @@ export default function ProjectsPage() {
             </Button>
           </div>
 
+          {/* Projects Section */}
+          {projects.length === 0 ? (
+            // Empty state
+            <div className="bg-white rounded-xl shadow-sm p-8 border border-gray-100 text-center">
+              <div className="max-w-md mx-auto">
+                <div className="mb-6">
+                  <Image 
+                    src="/illustrations/empty-projects.svg" 
+                    alt="No projects" 
+                    width={260} 
+                    height={180} 
+                    className="mx-auto"
+                  />
+                </div>
+                <h2 className="text-xl font-semibold mb-4">No projects yet</h2>
+                <p className="text-gray-500 mb-6">Start by creating your first research project, or explore templates for quick setup.</p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Button className="bg-primary hover:bg-primary/90 text-white">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Project
           {/* Projects Table */}
           <div className="rounded-lg border bg-card">
             <div className="p-4 flex justify-between items-center">

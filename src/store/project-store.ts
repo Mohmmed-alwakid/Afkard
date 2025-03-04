@@ -1,126 +1,158 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import { StudyType } from '@/components/study-type-modal'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { v4 as uuidv4 } from 'uuid'
 
-interface Study {
+// Define study types
+export type StudyType = 'test' | 'interview' | 'survey'
+export type StudyStatus = 'draft' | 'active' | 'completed' | 'archived'
+
+export interface Study {
   id: string
   type: StudyType
   title: string
-  createdAt: Date
-  updatedAt: Date
-  status: 'draft' | 'active' | 'completed'
+  description?: string
+  status: StudyStatus
+  createdAt: string
+  updatedAt: string
+  participants?: number
+  responses?: number
 }
 
-interface Project {
+// Define project types
+export type ProjectCategory = 'usability' | 'ux-research' | 'market-research' | 'feedback' | 'survey' | 'other'
+export type ProjectStatus = 'active' | 'completed' | 'archived'
+
+export interface Project {
   id: string
   name: string
   description?: string
-  createdAt: Date
-  updatedAt: Date
+  category: ProjectCategory | string
+  goal?: string
+  status?: ProjectStatus
+  createdAt: string
+  updatedAt: string
   studies: Study[]
 }
 
+// Define the store state
 interface ProjectState {
   projects: Project[]
-  activeProjectId: string | null
-  activeStudyId: string | null
-  setActiveProject: (projectId: string | null) => void
-  setActiveStudy: (studyId: string | null) => void
-  addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'studies'>) => void
+  
+  // Project actions
+  addProject: (project: Project) => void
+  updateProject: (id: string, data: Partial<Project>) => void
+  deleteProject: (id: string) => void
+  
+  // Study actions
   addStudy: (projectId: string, study: Omit<Study, 'id' | 'createdAt' | 'updatedAt'>) => void
-  updateProject: (projectId: string, updates: Partial<Project>) => void
-  updateStudy: (projectId: string, studyId: string, updates: Partial<Study>) => void
-  deleteProject: (projectId: string) => void
+  updateStudy: (projectId: string, studyId: string, data: Partial<Study>) => void
   deleteStudy: (projectId: string, studyId: string) => void
+  
+  // Helper functions
+  getProjectById: (id: string) => Project | undefined
+  getStudyById: (projectId: string, studyId: string) => Study | undefined
 }
 
 export const useProjectStore = create<ProjectState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       projects: [],
-      activeProjectId: null,
-      activeStudyId: null,
       
-      setActiveProject: (projectId) => set({ activeProjectId: projectId }),
-      setActiveStudy: (studyId) => set({ activeStudyId: studyId }),
-      
+      // Project actions
       addProject: (project) => set((state) => ({
-        projects: [
-          ...state.projects,
-          {
-            ...project,
-            id: crypto.randomUUID(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            studies: [],
-          },
-        ],
+        projects: [...state.projects, {
+          ...project,
+          status: project.status || 'active',
+          studies: project.studies || [],
+        }],
       })),
       
-      addStudy: (projectId, study) => set((state) => ({
-        projects: state.projects.map((project) =>
-          project.id === projectId
-            ? {
-                ...project,
-                updatedAt: new Date(),
+      updateProject: (id, data) => set((state) => ({
+        projects: state.projects.map((project) => 
+          project.id === id 
+            ? { 
+                ...project, 
+                ...data, 
+                updatedAt: new Date().toISOString() 
+              } 
+            : project
+        ),
+      })),
+      
+      deleteProject: (id) => set((state) => ({
+        projects: state.projects.filter((project) => project.id !== id),
+      })),
+      
+      // Study actions
+      addStudy: (projectId, studyData) => set((state) => ({
+        projects: state.projects.map((project) => 
+          project.id === projectId 
+            ? { 
+                ...project, 
+                updatedAt: new Date().toISOString(),
                 studies: [
-                  ...project.studies,
+                  ...project.studies, 
                   {
-                    ...study,
-                    id: crypto.randomUUID(),
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                  },
+                    id: uuidv4(),
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    participants: 0,
+                    responses: 0,
+                    ...studyData,
+                  }
                 ],
-              }
+              } 
             : project
         ),
       })),
       
-      updateProject: (projectId, updates) => set((state) => ({
-        projects: state.projects.map((project) =>
-          project.id === projectId
-            ? { ...project, ...updates, updatedAt: new Date() }
-            : project
-        ),
-      })),
-      
-      updateStudy: (projectId, studyId, updates) => set((state) => ({
-        projects: state.projects.map((project) =>
-          project.id === projectId
-            ? {
-                ...project,
-                updatedAt: new Date(),
-                studies: project.studies.map((study) =>
-                  study.id === studyId
-                    ? { ...study, ...updates, updatedAt: new Date() }
+      updateStudy: (projectId, studyId, data) => set((state) => ({
+        projects: state.projects.map((project) => 
+          project.id === projectId 
+            ? { 
+                ...project, 
+                updatedAt: new Date().toISOString(),
+                studies: project.studies.map((study) => 
+                  study.id === studyId 
+                    ? { 
+                        ...study, 
+                        ...data, 
+                        updatedAt: new Date().toISOString() 
+                      } 
                     : study
                 ),
-              }
+              } 
             : project
         ),
-      })),
-      
-      deleteProject: (projectId) => set((state) => ({
-        projects: state.projects.filter((project) => project.id !== projectId),
-        activeProjectId: state.activeProjectId === projectId ? null : state.activeProjectId,
       })),
       
       deleteStudy: (projectId, studyId) => set((state) => ({
-        projects: state.projects.map((project) =>
-          project.id === projectId
-            ? {
-                ...project,
-                updatedAt: new Date(),
+        projects: state.projects.map((project) => 
+          project.id === projectId 
+            ? { 
+                ...project, 
+                updatedAt: new Date().toISOString(),
                 studies: project.studies.filter((study) => study.id !== studyId),
-              }
+              } 
             : project
         ),
-        activeStudyId: state.activeStudyId === studyId ? null : state.activeStudyId,
       })),
+      
+      // Helper functions
+      getProjectById: (id) => {
+        return get().projects.find((project) => project.id === id)
+      },
+      
+      getStudyById: (projectId, studyId) => {
+        const project = get().projects.find((project) => project.id === projectId)
+        if (!project) return undefined
+        return project.studies.find((study) => study.id === studyId)
+      },
     }),
     {
-      name: 'project-storage',
+      name: 'afkar-projects',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ projects: state.projects }),
     }
   )
 ) 

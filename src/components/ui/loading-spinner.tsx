@@ -1,39 +1,89 @@
-import * as React from "react"
-import { cn } from "@/lib/utils"
-import { cva, type VariantProps } from "class-variance-authority"
+'use client';
 
-const spinnerVariants = cva(
-  "animate-spin rounded-full border-2 border-current border-t-transparent",
-  {
-    variants: {
-      size: {
-        default: "h-4 w-4",
-        sm: "h-3 w-3",
-        lg: "h-6 w-6",
-        xl: "h-8 w-8",
-      },
-    },
-    defaultVariants: {
-      size: "default",
-    },
-  }
-)
+import React from 'react';
+import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-export interface SpinnerProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof spinnerVariants> {
-  asChild?: boolean
+type SpinnerSize = 'sm' | 'md' | 'lg' | 'xl';
+
+export interface LoadingSpinnerProps extends React.HTMLAttributes<HTMLDivElement> {
+  /**
+   * The size of the spinner
+   * @default 'md'
+   */
+  size?: SpinnerSize;
+  
+  /**
+   * Optional text to display alongside the spinner
+   */
+  text?: string;
+  
+  /**
+   * Whether to center the spinner and text
+   * @default false
+   */
+  centered?: boolean;
+  
+  /**
+   * Aria label for the spinner for accessibility
+   * @default 'Loading'
+   */
+  ariaLabel?: string;
 }
 
-export function LoadingSpinner({ className, size, ...props }: SpinnerProps) {
+const sizeClasses: Record<SpinnerSize, string> = {
+  sm: 'h-4 w-4',
+  md: 'h-6 w-6',
+  lg: 'h-8 w-8',
+  xl: 'h-12 w-12',
+};
+
+export function LoadingSpinner({
+  size = 'md',
+  text,
+  centered = false,
+  ariaLabel = 'Loading',
+  className,
+  ...props
+}: LoadingSpinnerProps) {
+  const spinnerSize = sizeClasses[size];
+  
+  const spinner = (
+    <Loader2
+      className={cn('animate-spin', spinnerSize)}
+      aria-label={ariaLabel}
+    />
+  );
+  
+  // If there's no text, just return the spinner
+  if (!text) {
+    return (
+      <div
+        className={cn(
+          centered && 'flex justify-center items-center',
+          className
+        )}
+        {...props}
+      >
+        {spinner}
+      </div>
+    );
+  }
+  
+  // If there's text, return a container with spinner and text
   return (
     <div
-      className={cn(spinnerVariants({ size, className }))}
-      {...props}
+      className={cn(
+        'flex flex-col items-center gap-2',
+        centered && 'justify-center',
+        className
+      )}
       role="status"
-      aria-label="Loading"
+      aria-live="polite"
+      {...props}
     >
-      <span className="sr-only">Loading...</span>
+      {spinner}
+      <span className="text-sm font-medium">{text}</span>
     </div>
-  )
+  );
 } 
