@@ -114,15 +114,41 @@ const handleApiResponse = <T>(
 export const UserService = {
   // Get user profile (can be used in both client and server components)
   async getUserProfile(userId: string, isServer = false) {
-    const supabase = isServer ? createServerClient() : createClientComponentClient();
-    
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    
-    return handleApiResponse<UserProfile>(data, error, UserProfileSchema);
+    try {
+      let supabase;
+      
+      if (isServer) {
+        // Dynamic import to avoid circular dependencies
+        const { createServerClient } = await import('@/lib/supabase-server');
+        supabase = await createServerClient(); 
+      } else {
+        // Client-side supabase
+        supabase = createClientComponentClient();
+      }
+      
+      // Verify we have a valid Supabase client
+      if (!supabase || typeof supabase.from !== 'function') {
+        console.error('Invalid Supabase client in getUserProfile');
+        return { 
+          data: null, 
+          error: 'Failed to initialize database client' 
+        };
+      }
+      
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      return handleApiResponse<UserProfile>(data, error, UserProfileSchema);
+    } catch (error) {
+      console.error('Error in getUserProfile:', error);
+      return { 
+        data: null, 
+        error: error instanceof Error ? error.message : 'Unknown error in getUserProfile' 
+      };
+    }
   },
   
   // Update user profile (client-side only)
@@ -144,43 +170,124 @@ export const UserService = {
 export const ProjectService = {
   // Get projects for a user (can be used in both client and server components)
   async getUserProjects(userId: string, isServer = false) {
-    const supabase = isServer ? createServerClient() : createClientComponentClient();
-    
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('owner_id', userId)
-      .order('created_at', { ascending: false });
-    
-    return handleApiResponse<Project[]>(data, error);
+    try {
+      let supabase;
+      
+      if (isServer) {
+        // Dynamic import to avoid circular dependencies
+        const { createServerClient } = await import('@/lib/supabase-server');
+        supabase = await createServerClient(); 
+      } else {
+        // Client-side supabase
+        supabase = createClientComponentClient();
+      }
+      
+      // Verify we have a valid Supabase client
+      if (!supabase || typeof supabase.from !== 'function') {
+        console.error('Invalid Supabase client in getUserProjects');
+        return { 
+          data: null, 
+          error: 'Failed to initialize database client' 
+        };
+      }
+      
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('owner_id', userId)
+        .order('created_at', { ascending: false });
+      
+      return handleApiResponse<Project[]>(data, error);
+    } catch (error) {
+      console.error('Error in getUserProjects:', error);
+      return { 
+        data: null, 
+        error: error instanceof Error ? error.message : 'Unknown error getting projects' 
+      };
+    }
   },
   
   // Get a single project
   async getProject(projectId: string, isServer = false) {
-    const supabase = isServer ? createServerClient() : createClientComponentClient();
-    
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('id', projectId)
-      .single();
-    
-    return handleApiResponse<Project>(data, error, ProjectSchema);
+    try {
+      let supabase;
+      
+      if (isServer) {
+        // Dynamic import to avoid circular dependencies
+        const { createServerClient } = await import('@/lib/supabase-server');
+        supabase = await createServerClient(); 
+      } else {
+        // Client-side supabase
+        supabase = createClientComponentClient();
+      }
+      
+      // Verify we have a valid Supabase client
+      if (!supabase || typeof supabase.from !== 'function') {
+        console.error('Invalid Supabase client in getProject');
+        return { 
+          data: null, 
+          error: 'Failed to initialize database client' 
+        };
+      }
+      
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', projectId)
+        .single();
+      
+      return handleApiResponse<Project>(data, error);
+    } catch (error) {
+      console.error('Error in getProject:', error);
+      return { 
+        data: null, 
+        error: error instanceof Error ? error.message : 'Unknown error getting project' 
+      };
+    }
   },
   
   // Check if user has any projects
   async hasProjects(userId: string, isServer = false) {
-    const supabase = isServer ? createServerClient() : createClientComponentClient();
-    
-    const { count, error } = await supabase
-      .from('projects')
-      .select('*', { count: 'exact', head: true })
-      .eq('owner_id', userId);
-    
-    return {
-      hasProjects: (count || 0) > 0,
-      error: error ? error.message : null
-    };
+    try {
+      let supabase;
+      
+      if (isServer) {
+        // Dynamic import to avoid circular dependencies
+        const { createServerClient } = await import('@/lib/supabase-server');
+        supabase = await createServerClient(); 
+      } else {
+        // Client-side supabase
+        supabase = createClientComponentClient();
+      }
+      
+      // Verify we have a valid Supabase client
+      if (!supabase || typeof supabase.from !== 'function') {
+        console.error('Invalid Supabase client in hasProjects');
+        return { 
+          hasProjects: false, 
+          error: 'Failed to initialize database client' 
+        };
+      }
+      
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('owner_id', userId)
+        .limit(1);
+      
+      if (error) {
+        console.error('Error checking projects:', error);
+        return { hasProjects: false, error: error.message };
+      }
+      
+      return { hasProjects: data && data.length > 0, error: null };
+    } catch (error) {
+      console.error('Exception in hasProjects:', error);
+      return { 
+        hasProjects: false, 
+        error: error instanceof Error ? error.message : 'Unknown error checking projects' 
+      };
+    }
   },
   
   // Create a new project
@@ -201,28 +308,80 @@ export const ProjectService = {
 export const StudyService = {
   // Get studies for a project
   async getProjectStudies(projectId: string, isServer = false) {
-    const supabase = isServer ? createServerClient() : createClientComponentClient();
-    
-    const { data, error } = await supabase
-      .from('studies')
-      .select('*')
-      .eq('project_id', projectId)
-      .order('created_at', { ascending: false });
-    
-    return handleApiResponse<Study[]>(data, error);
+    try {
+      let supabase;
+      
+      if (isServer) {
+        // Dynamic import to avoid circular dependencies
+        const { createServerClient } = await import('@/lib/supabase-server');
+        supabase = await createServerClient(); 
+      } else {
+        // Client-side supabase
+        supabase = createClientComponentClient();
+      }
+      
+      // Verify we have a valid Supabase client
+      if (!supabase || typeof supabase.from !== 'function') {
+        console.error('Invalid Supabase client in getProjectStudies');
+        return { 
+          data: null, 
+          error: 'Failed to initialize database client' 
+        };
+      }
+      
+      const { data, error } = await supabase
+        .from('studies')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false });
+      
+      return handleApiResponse<Study[]>(data, error);
+    } catch (error) {
+      console.error('Error in getProjectStudies:', error);
+      return { 
+        data: null, 
+        error: error instanceof Error ? error.message : 'Unknown error getting studies' 
+      };
+    }
   },
   
   // Get a single study
   async getStudy(studyId: string, isServer = false) {
-    const supabase = isServer ? createServerClient() : createClientComponentClient();
-    
-    const { data, error } = await supabase
-      .from('studies')
-      .select('*')
-      .eq('id', studyId)
-      .single();
-    
-    return handleApiResponse<Study>(data, error, StudySchema);
+    try {
+      let supabase;
+      
+      if (isServer) {
+        // Dynamic import to avoid circular dependencies
+        const { createServerClient } = await import('@/lib/supabase-server');
+        supabase = await createServerClient(); 
+      } else {
+        // Client-side supabase
+        supabase = createClientComponentClient();
+      }
+      
+      // Verify we have a valid Supabase client
+      if (!supabase || typeof supabase.from !== 'function') {
+        console.error('Invalid Supabase client in getStudy');
+        return { 
+          data: null, 
+          error: 'Failed to initialize database client' 
+        };
+      }
+      
+      const { data, error } = await supabase
+        .from('studies')
+        .select('*')
+        .eq('id', studyId)
+        .single();
+      
+      return handleApiResponse<Study>(data, error);
+    } catch (error) {
+      console.error('Error in getStudy:', error);
+      return { 
+        data: null, 
+        error: error instanceof Error ? error.message : 'Unknown error getting study' 
+      };
+    }
   },
   
   // Create a new study

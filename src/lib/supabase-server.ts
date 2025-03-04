@@ -19,7 +19,8 @@ export async function createServerClient() {
     throw new Error('Missing Supabase environment variables');
   }
   
-  return createSupabaseServerClient<Database>(
+  // Create the client with the correct interface that includes the 'from' method
+  const supabase = createSupabaseServerClient<Database>(
     supabaseUrl,
     supabaseKey,
     {
@@ -52,6 +53,20 @@ export async function createServerClient() {
       },
     }
   );
+  
+  // Ensure the client has all the expected methods before returning
+  if (!supabase || typeof supabase.from !== 'function') {
+    console.error('Supabase client missing expected methods. Using fallback.');
+    
+    // Fallback to direct client creation if the SSR client doesn't work
+    return createClient<Database>(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: false
+      }
+    });
+  }
+  
+  return supabase;
 }
 
 /**
