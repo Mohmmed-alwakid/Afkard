@@ -14,4 +14,6 @@ export default function ParticipantDashboardPage() {
       <ParticipantDashboardContent />
     </Suspense>
   );
-} 
+}
+
+export const dynamic = 'force-dynamic'; 

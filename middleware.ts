@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 
+// Define authentication-exempt routes
+const AUTH_ROUTES = ['/login', '/signup', '/reset-password', '/verify', '/callback']
+
 // Simple debug logging for development
 const DEBUG = true
 const log = (message: string, data?: any) => {
@@ -19,6 +22,12 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/') ||
     /\.(ico|png|jpg|jpeg|gif|svg|css|js|woff|woff2)$/.test(pathname)
   ) {
+    return NextResponse.next()
+  }
+  
+  // Skip middleware for auth routes and signup sub-routes
+  if (AUTH_ROUTES.includes(pathname) || pathname.startsWith('/signup/')) {
+    log('Auth route: Allowing access', { pathname })
     return NextResponse.next()
   }
   

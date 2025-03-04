@@ -4,7 +4,7 @@ import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 
 // Define route types for clarity
 const PUBLIC_ROUTES = ['/', '/about', '/contact', '/terms', '/privacy', '/help', '/faq']
-const AUTH_ROUTES = ['/login', '/signup', '/reset-password', '/verify', '/callback']
+const AUTH_ROUTES = ['/login', '/signup', '/signup/researcher', '/signup/participant', '/reset-password', '/verify', '/callback']
 const DASHBOARD_ROUTES = ['/dashboard', '/profile']
 
 // CRITICAL FIX: Update to use a single unified dashboard
@@ -106,7 +106,7 @@ export async function middleware(request: NextRequest) {
   }
   
   // Always allow access to auth routes
-  if (AUTH_ROUTES.includes(pathname)) {
+  if (AUTH_ROUTES.includes(pathname) || pathname.startsWith('/signup/')) {
     log('Auth route: Processing with auth checks', { pathname })
     
     try {
@@ -229,7 +229,7 @@ export async function middleware(request: NextRequest) {
     // For any errors, log details and handle appropriately
     log('Error in middleware', { error, pathname })
     
-    if (PUBLIC_ROUTES.includes(pathname) || AUTH_ROUTES.includes(pathname)) {
+    if (PUBLIC_ROUTES.includes(pathname) || AUTH_ROUTES.includes(pathname) || pathname.startsWith('/signup/')) {
       log('Error but route is public/auth: allowing access')
       return NextResponse.next()
     }
