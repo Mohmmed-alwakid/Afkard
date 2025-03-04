@@ -12,6 +12,7 @@ const DASHBOARD_PATH = '/dashboard';
 
 // Add anti-loop detection
 const MAX_REDIRECTS = 3; // Maximum number of redirects before breaking the loop
+const MAX_REDIRECT_TIME = 30; // Maximum seconds for redirect throttling
 
 const STATIC_PATTERNS = [
   /^\/_next\//,
@@ -30,82 +31,32 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   log('Request path', { pathname, url: request.url })
   
-  // Count the number of redirects for anti-loop protection
+  // Anti-Loop Protection: Check redirect count and throttle if needed
   const redirectCount = parseInt(request.headers.get('x-redirect-count') || '0');
+  const lastRedirectTime = request.headers.get('x-last-redirect-time');
+  const currentTime = Date.now();
+  
+  // Check if we need to break a redirect loop
   if (redirectCount >= MAX_REDIRECTS) {
     log('Breaking redirect loop - too many redirects', { redirectCount });
-    // Force a clean slate by next - no more redirects
-    return NextResponse.next({
-      request: {
-        headers: new Headers(request.headers)
-      }
-    });
+    return NextResponse.next();
+  }
+  
+  // Throttle redirects if they happen too quickly (prevent DOS)
+  if (lastRedirectTime && (currentTime - parseInt(lastRedirectTime)) < (MAX_REDIRECT_TIME * 1000)) {
+    if (redirectCount > 1) {
+      log('Throttling redirects - too many redirects in a short time', { 
+        redirectCount, 
+        timeSinceLastRedirect: (currentTime - parseInt(lastRedirectTime)) / 1000 
+      });
+      return NextResponse.next();
+    }
   }
   
   // Skip middleware for client-side redirector pages
   if (pathname === '/home' || pathname === '/researcher') {
     log('Skipping middleware checks for client-side auth redirector page', { pathname })
     return NextResponse.next()
-  }
-  
-  // Handle potential redirection loops
-  const referer = request.headers.get('referer') || '';
-  const referPath = referer ? new URL(referer).pathname : '';
-  
-  if (pathname === referPath) {
-    log('Breaking potential redirection loop', { pathname, referer });
-    return NextResponse.next();
-  }
-  
-  // Handle root path and old dashboard paths with redirects to new unified dashboard
-  if (pathname === '/' || pathname === '/home' || pathname === '/researcher') {
-    log('Root or Legacy Dashboard PATH: Handling with corrected paths', { pathname })
-    
-    // Create a response without redirects first
-    const response = NextResponse.next()
-    const supabase = createMiddlewareClient({ req: request, res: response })
-    
-    try {
-      // Quick session check without automatic redirects
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      log('Session check for dashboard path', { 
-        hasSession: !!session,
-        sessionUser: session?.user?.email,
-        userRole: session?.user?.user_metadata?.role
-      })
-      
-      // For the root path, handle redirection appropriately
-      if (pathname === '/') {
-        if (!session) {
-          // If not authenticated, stay on home page
-          return response;
-        }
-        
-        // If authenticated, redirect to unified dashboard
-        log('Redirecting root path to unified dashboard');
-        return NextResponse.redirect(new URL(DASHBOARD_PATH, request.url));
-      }
-      
-      // Handle legacy dashboard routes (researcher & home) 
-      if (pathname === '/researcher' || pathname === '/home') {
-        if (!session) {
-          // Redirect to login with dashboard return URL if not authenticated
-          log('No session for dashboard route, redirecting to login')
-          return NextResponse.redirect(new URL(`/login?returnUrl=${DASHBOARD_PATH}`, request.url))
-        }
-        
-        // Redirect to unified dashboard
-        log('Redirecting legacy dashboard path to unified dashboard');
-        return NextResponse.redirect(new URL(DASHBOARD_PATH, request.url))
-      }
-      
-      // Otherwise just proceed
-      return response
-    } catch (error) {
-      log('Error checking session for dashboard path', { error })
-      return response
-    }
   }
   
   // Always allow access to static assets
@@ -137,7 +88,7 @@ export async function middleware(request: NextRequest) {
       })
       
       // If user is authenticated on auth routes, consider redirecting
-      if (session) {
+      if (session && session.user && session.user.id) {
         // Extract return URL if present, but sanitize it
         const url = new URL(request.url)
         const returnUrl = url.searchParams.get('returnUrl')
@@ -177,8 +128,7 @@ export async function middleware(request: NextRequest) {
     try {
       // Check if this is potentially a redirect loop
       const referer = request.headers.get('referer') || '';
-      const referPath = referer ? new URL(referer).pathname : '';
-      const potentialLoop = referPath === '/login' || redirectCount > 0;
+      const potentialLoop = referer.includes('/login') && redirectCount > 0;
       
       if (potentialLoop) {
         log('Potential login-dashboard redirect loop detected', { referer, redirectCount });
@@ -212,16 +162,21 @@ export async function middleware(request: NextRequest) {
           timestamp: new Date().toISOString()
         })
         
-        // If no session, redirect to login with count header
-        if (!session) {
-          log('No session for dashboard access, redirecting to login')
-          const redirectResponse = NextResponse.redirect(new URL(`/login?returnUrl=/dashboard`, request.url));
+        // If no valid session or user, redirect to login with count headers
+        if (!session || !session.user || !session.user.id) {
+          log('No valid session for dashboard access, redirecting to login')
+          const redirectUrl = new URL(`/login?returnUrl=${encodeURIComponent(pathname)}`, request.url);
+          const redirectResponse = NextResponse.redirect(redirectUrl);
+          
+          // Update redirect tracking headers
           redirectResponse.headers.set('x-redirect-count', (redirectCount + 1).toString());
+          redirectResponse.headers.set('x-last-redirect-time', currentTime.toString());
+          
           return redirectResponse;
         }
         
         // Allow access to dashboard - it's a valid path 
-        log('Allow access to dashboard');
+        log('Allow access to dashboard - valid session');
         return response;
       } catch (sessionError) {
         // Handle session check errors
@@ -232,12 +187,12 @@ export async function middleware(request: NextRequest) {
     } catch (error) {
       // Handle overall errors
       log('Critical error in dashboard middleware', { error })
-      // On critical errors, redirect to login as a fallback
+      // On critical errors, let client-side handle auth
       return NextResponse.next();
     }
   }
   
-  // For protected routes, check authentication
+  // For other routes, default to requiring authentication
   try {
     // Initialize Supabase client with the request
     const response = NextResponse.next()
@@ -245,35 +200,27 @@ export async function middleware(request: NextRequest) {
     
     // Get the user's session
     const { data: { session } } = await supabase.auth.getSession()
-    log('Protected route session check', { 
-      hasSession: !!session,
-      sessionUser: session?.user?.email,
-      path: pathname
-    })
     
-    // If no session, redirect to login with returnUrl
+    // If no session, redirect to login
     if (!session) {
-      log('No session: Redirecting to login', { pathname })
-      // Add the returnUrl, but don't use /login as returnUrl to avoid loops
-      const returnPath = pathname === '/login' ? '/' : pathname
-      const loginUrl = new URL(`/login${returnPath !== '/' ? `?returnUrl=${encodeURIComponent(returnPath)}` : ''}`, request.url)
-      return NextResponse.redirect(loginUrl)
+      log('No session for protected route, redirecting to login', { path: pathname })
+      const redirectUrl = new URL(`/login?returnUrl=${encodeURIComponent(pathname)}`, request.url);
+      const redirectResponse = NextResponse.redirect(redirectUrl);
+      
+      // Update redirect tracking headers
+      redirectResponse.headers.set('x-redirect-count', (redirectCount + 1).toString());
+      redirectResponse.headers.set('x-last-redirect-time', currentTime.toString());
+      
+      return redirectResponse;
     }
     
-    // User is authenticated, allow access
-    log('Authenticated: Allowing access', { pathname })
+    // Allow access for authenticated users
+    log('Authenticated access to protected route', { path: pathname })
     return response
   } catch (error) {
-    // For any errors, log details and handle appropriately
-    log('Error in middleware', { error, pathname })
-    
-    if (PUBLIC_ROUTES.includes(pathname) || AUTH_ROUTES.includes(pathname) || pathname.startsWith('/signup/')) {
-      log('Error but route is public/auth: allowing access')
-      return NextResponse.next()
-    }
-    
-    log('Error and route is protected: redirecting to login')
-    return NextResponse.redirect(new URL('/login', request.url))
+    // On errors, allow access and let client-side handle auth
+    log('Error in protected route middleware', { error, path: pathname })
+    return NextResponse.next()
   }
 }
 

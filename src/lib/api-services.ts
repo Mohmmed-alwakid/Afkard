@@ -115,6 +115,15 @@ export const UserService = {
   // Get user profile (can be used in both client and server components)
   async getUserProfile(userId: string, isServer = false) {
     try {
+      // Validate userId to prevent invalid UUID errors
+      if (!userId || userId === 'undefined') {
+        console.error('Invalid userId provided to getUserProfile:', userId);
+        return {
+          data: null,
+          error: 'Invalid user ID provided'
+        };
+      }
+      
       let supabase;
       
       if (isServer) {
@@ -140,6 +149,12 @@ export const UserService = {
         .select('*')
         .eq('id', userId)
         .single();
+      
+      if (error) {
+        console.error(`Error fetching user profile for userId ${userId}:`, error);
+      } else if (!data) {
+        console.warn(`No profile found for userId ${userId}`);
+      }
       
       return handleApiResponse<UserProfile>(data, error, UserProfileSchema);
     } catch (error) {
@@ -434,10 +449,18 @@ export const AuthService = {
       
       // Handle case where session might be null
       if (!data?.session) {
+        console.log('No session found in getCurrentUser');
         return { user: null };
       }
       
-      return { user: data.session.user };
+      // Add validation to ensure user has a valid ID
+      const user = data.session.user;
+      if (!user || !user.id) {
+        console.warn('Session exists but user or user ID is missing');
+        return { user: null };
+      }
+      
+      return { user };
     } catch (error) {
       console.error('Error getting current user:', error);
       return { user: null };
