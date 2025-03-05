@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 
+// DEVELOPMENT BYPASS FLAG - Set to true to bypass authentication in development
+const BYPASS_AUTH_IN_DEV = true;
+
 // Define route types for clarity
 const PUBLIC_ROUTES = ['/', '/about', '/contact', '/terms', '/privacy', '/help', '/faq']
 const AUTH_ROUTES = [
@@ -37,9 +40,22 @@ const log = (message: string, data?: any) => {
   if (DEBUG) console.log(`[Middleware] ${message}`, data || '')
 }
 
+// Helper function to check if we're in development mode
+const isDevelopment = () => {
+  // Check if we're running in a development environment
+  // Next.js sets NODE_ENV to 'development' in dev mode
+  return process.env.NODE_ENV === 'development';
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   log('Request path', { pathname, url: request.url })
+  
+  // DEVELOPMENT MODE BYPASS - Allow all access in development mode if flag is enabled
+  if (isDevelopment() && BYPASS_AUTH_IN_DEV) {
+    log('DEVELOPMENT MODE: Bypassing authentication checks', { pathname });
+    return NextResponse.next();
+  }
   
   // Anti-Loop Protection: Check redirect count and throttle if needed
   const redirectCount = parseInt(request.headers.get('x-redirect-count') || '0');

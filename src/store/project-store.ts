@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
+import { persist, createJSONStorage, PersistOptions } from 'zustand/middleware'
 import { v4 as uuidv4 } from 'uuid'
 
 // Define study types
@@ -37,6 +37,7 @@ export interface Project {
 // Define the store state
 interface ProjectState {
   projects: Project[]
+  version: number
   
   // Project actions
   addProject: (project: Project) => void
@@ -53,19 +54,72 @@ interface ProjectState {
   getStudyById: (projectId: string, studyId: string) => Study | undefined
 }
 
+// Create a custom migration function for version updates
+const migrations = {
+  // Migration to handle potential structures in older versions
+  0: (state: any) => {
+    return {
+      ...state,
+      version: 1,
+      projects: Array.isArray(state.projects) ? state.projects : []
+    };
+  },
+  // Future migrations can be added here
+};
+
+// Persistence configuration
+const persistConfig: PersistOptions<ProjectState> = {
+  name: 'afkar-projects',
+  storage: createJSONStorage(() => {
+    // Make sure localStorage is available (SSR safety)
+    if (typeof window !== 'undefined') {
+      return localStorage;
+    }
+    return {
+      getItem: () => null,
+      setItem: () => null,
+      removeItem: () => null,
+    };
+  }),
+  partialize: (state) => ({
+    projects: state.projects,
+    version: state.version,
+  }),
+  // Handle migrations for versioning
+  migrate: (persistedState: any, version) => {
+    if (!persistedState) return { projects: [], version: 1 };
+    
+    let state = { ...persistedState };
+    
+    // Apply needed migrations
+    const currentVersion = state.version || 0;
+    if (currentVersion < 1 && migrations[0]) {
+      state = migrations[0](state);
+    }
+    
+    return state;
+  },
+  version: 1, // Current schema version
+};
+
 export const useProjectStore = create<ProjectState>()(
   persist(
     (set, get) => ({
       projects: [],
+      version: 1,
       
       // Project actions
-      addProject: (project) => set((state) => ({
-        projects: [...state.projects, {
+      addProject: (project) => set((state) => {
+        // Ensure we're creating a copy to avoid reference issues
+        const newProject = {
           ...project,
           status: project.status || 'active',
-          studies: project.studies || [],
-        }],
-      })),
+          studies: [...(project.studies || [])],
+        };
+        return {
+          projects: [...state.projects, newProject],
+        };
+      }),
       
       updateProject: (id, data) => set((state) => ({
         projects: state.projects.map((project) => 
@@ -149,10 +203,6 @@ export const useProjectStore = create<ProjectState>()(
         return project.studies.find((study) => study.id === studyId)
       },
     }),
-    {
-      name: 'afkar-projects',
-      storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ projects: state.projects }),
-    }
+    persistConfig
   )
 ) 

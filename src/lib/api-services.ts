@@ -2,6 +2,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { createServerClient } from '@/lib/supabase-server';
 import { z } from 'zod';
 import { type User } from '@supabase/supabase-js';
+import { Task, TaskCreate, TaskUpdate, TaskStatus, TaskPriority } from '@/types/task';
 
 // Type Definitions
 export interface UserProfile {
@@ -69,6 +70,25 @@ export const StudySchema = z.object({
   updated_at: z.string(),
   status: z.enum(['draft', 'active', 'completed']),
   reward_amount: z.number().optional()
+});
+
+// Add Task schema to the existing schemas
+export const TaskSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().min(3),
+  description: z.string().optional(),
+  status: z.nativeEnum(TaskStatus),
+  priority: z.nativeEnum(TaskPriority),
+  due_date: z.string().datetime().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  created_by: z.string().uuid(),
+  assigned_to: z.string().uuid().optional(),
+  project_id: z.string().uuid().optional(),
+  study_id: z.string().uuid().optional(),
+  parent_id: z.string().uuid().optional(),
+  tags: z.array(z.string()).optional(),
+  is_completed: z.boolean()
 });
 
 // Helper function to handle API responses
@@ -480,4 +500,155 @@ export const apiService = {
     return { id: 'mock-id', ...data };
   },
   // Add other methods as needed
+  async createTask(task: TaskCreate) {
+    try {
+      const supabase = createClientComponentClient();
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert([
+          { 
+            ...task,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+        ])
+        .select()
+        .single();
+
+      return handleApiResponse<Task>(data, error, TaskSchema);
+    } catch (error) {
+      console.error('Error creating task:', error);
+      return { data: null, error: 'Failed to create task', isValid: false };
+    }
+  },
+
+  async updateTask(taskId: string, updates: TaskUpdate) {
+    try {
+      const supabase = createClientComponentClient();
+      const { data, error } = await supabase
+        .from('tasks')
+        .update({ 
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', taskId)
+        .select()
+        .single();
+
+      return handleApiResponse<Task>(data, error, TaskSchema);
+    } catch (error) {
+      console.error('Error updating task:', error);
+      return { data: null, error: 'Failed to update task', isValid: false };
+    }
+  },
+
+  async deleteTask(taskId: string) {
+    try {
+      const supabase = createClientComponentClient();
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId);
+
+      return { 
+        data: true, 
+        error: error ? 'Failed to delete task' : null, 
+        isValid: !error 
+      };
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      return { data: null, error: 'Failed to delete task', isValid: false };
+    }
+  },
+
+  async getTask(taskId: string, isServer = false) {
+    try {
+      const supabase = isServer
+        ? createServerClient()
+        : createClientComponentClient();
+
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*, profiles(first_name, last_name, avatar_url)')
+        .eq('id', taskId)
+        .single();
+
+      return handleApiResponse<Task>(data, error, TaskSchema);
+    } catch (error) {
+      console.error('Error fetching task:', error);
+      return { data: null, error: 'Failed to fetch task', isValid: false };
+    }
+  },
+
+  async getUserTasks(userId: string, isServer = false) {
+    try {
+      const supabase = isServer
+        ? createServerClient()
+        : createClientComponentClient();
+
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*, profiles(first_name, last_name, avatar_url)')
+        .or(`created_by.eq.${userId},assigned_to.eq.${userId}`)
+        .order('due_date', { ascending: true });
+
+      return handleApiResponse<Task[]>(data, error);
+    } catch (error) {
+      console.error('Error fetching user tasks:', error);
+      return { data: null, error: 'Failed to fetch user tasks', isValid: false };
+    }
+  },
+
+  async getProjectTasks(projectId: string, isServer = false) {
+    try {
+      const supabase = isServer
+        ? createServerClient()
+        : createClientComponentClient();
+
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*, profiles(first_name, last_name, avatar_url)')
+        .eq('project_id', projectId)
+        .order('due_date', { ascending: true });
+
+      return handleApiResponse<Task[]>(data, error);
+    } catch (error) {
+      console.error('Error fetching project tasks:', error);
+      return { data: null, error: 'Failed to fetch project tasks', isValid: false };
+    }
+  },
+
+  async getStudyTasks(studyId: string, isServer = false) {
+    try {
+      const supabase = isServer
+        ? createServerClient()
+        : createClientComponentClient();
+
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*, profiles(first_name, last_name, avatar_url)')
+        .eq('study_id', studyId)
+        .order('due_date', { ascending: true });
+
+      return handleApiResponse<Task[]>(data, error);
+    } catch (error) {
+      console.error('Error fetching study tasks:', error);
+      return { data: null, error: 'Failed to fetch study tasks', isValid: false };
+    }
+  },
+
+  async updateTaskStatus(taskId: string, status: TaskStatus) {
+    return this.updateTask(taskId, { 
+      status, 
+      is_completed: status === TaskStatus.DONE,
+      updated_at: new Date().toISOString()
+    });
+  },
+
+  async assignTask(taskId: string, userId: string) {
+    return this.updateTask(taskId, { 
+      assigned_to: userId,
+      updated_at: new Date().toISOString()
+    });
+  },
 }; 

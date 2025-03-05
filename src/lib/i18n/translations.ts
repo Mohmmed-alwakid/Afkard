@@ -40,6 +40,8 @@ export type TranslationKey =
   | 'common.myAccount'
   | 'common.closeMenu'
   | 'common.openMenu'
+  | 'common.copy'
+  | 'common.close'
   | 'profile.manageSettings'
   | 'profile.saveSuccess'
   | 'profile.personalInfo'
@@ -110,6 +112,35 @@ export type TranslationKey =
   | 'studies.share'
   | 'studies.preview'
   | 'studies.settings'
+  | 'studies.detail.overview'
+  | 'studies.detail.participants'
+  | 'studies.detail.responses'
+  | 'studies.detail.notFound'
+  | 'studies.detail.notFoundDesc'
+  | 'studies.detail.createdOn'
+  | 'studies.detail.lastUpdated'
+  | 'studies.detail.status'
+  | 'studies.detail.type'
+  | 'studies.detail.targetParticipants'
+  | 'studies.detail.activityLog'
+  | 'studies.detail.completionRate'
+  | 'studies.detail.averageTime'
+  | 'studies.detail.backToProject'
+  | 'studies.detail.launchStudy'
+  | 'studies.detail.completeStudy'
+  | 'studies.detail.reactivateStudy'
+  | 'studies.detail.copyLink'
+  | 'studies.detail.copied'
+  | 'studies.detail.invite'
+  | 'studies.detail.loadingStudy'
+  | 'studies.detail.deleteConfirm'
+  | 'studies.detail.progress'
+  | 'studies.detail.tasks'
+  | 'studies.detail.analytics'
+  | 'studies.detail.shareLink'
+  | 'studies.detail.viewResponses'
+  | 'studies.detail.exportResults'
+  | 'studies.detail.shareOptions'
   | 'participants.title'
   | 'participants.invite'
   | 'participants.empty'
@@ -123,6 +154,7 @@ export type TranslationKey =
   | 'participants.tags'
   | 'participants.import'
   | 'participants.export'
+  | 'participants.total'
   | 'dashboard.title'
   | 'dashboard.overview'
   | 'dashboard.projects'
@@ -180,6 +212,8 @@ const en: TranslationsType = {
   'common.myAccount': 'My Account',
   'common.closeMenu': 'Close Menu',
   'common.openMenu': 'Open Menu',
+  'common.copy': 'Copy',
+  'common.close': 'Close',
   'profile.manageSettings': 'Manage your account settings and preferences',
   'profile.saveSuccess': 'Your changes have been saved successfully.',
   'profile.personalInfo': 'Personal Information',
@@ -252,6 +286,35 @@ const en: TranslationsType = {
   'studies.share': 'Share',
   'studies.preview': 'Preview',
   'studies.settings': 'Settings',
+  'studies.detail.overview': 'Overview',
+  'studies.detail.participants': 'Participants',
+  'studies.detail.responses': 'Responses',
+  'studies.detail.notFound': 'Study Not Found',
+  'studies.detail.notFoundDesc': 'The study you are looking for does not exist or has been removed.',
+  'studies.detail.createdOn': 'Created on',
+  'studies.detail.lastUpdated': 'Last updated',
+  'studies.detail.status': 'Status',
+  'studies.detail.type': 'Type',
+  'studies.detail.targetParticipants': 'Target Participants',
+  'studies.detail.activityLog': 'Activity Log',
+  'studies.detail.completionRate': 'Completion Rate',
+  'studies.detail.averageTime': 'Average Time',
+  'studies.detail.backToProject': 'Back to Project',
+  'studies.detail.launchStudy': 'Launch Study',
+  'studies.detail.completeStudy': 'Complete Study',
+  'studies.detail.reactivateStudy': 'Reactivate',
+  'studies.detail.copyLink': 'Copy Link',
+  'studies.detail.copied': 'Copied!',
+  'studies.detail.invite': 'Invite Participants',
+  'studies.detail.loadingStudy': 'Loading study details...',
+  'studies.detail.deleteConfirm': 'Are you sure you want to delete this study? This action cannot be undone.',
+  'studies.detail.progress': 'Progress',
+  'studies.detail.tasks': 'Tasks',
+  'studies.detail.analytics': 'Analytics',
+  'studies.detail.shareLink': 'Share Link',
+  'studies.detail.viewResponses': 'View Responses',
+  'studies.detail.exportResults': 'Export Results',
+  'studies.detail.shareOptions': 'Share Options',
 
   'participants.title': 'Participants',
   'participants.invite': 'Invite Participants',
@@ -266,6 +329,7 @@ const en: TranslationsType = {
   'participants.tags': 'Tags',
   'participants.import': 'Import Participants',
   'participants.export': 'Export Participants',
+  'participants.total': 'Total Participants',
 
   'dashboard.title': 'Dashboard',
   'dashboard.overview': 'Overview',
@@ -320,6 +384,8 @@ const ar: TranslationsType = {
   'common.myAccount': 'حسابي',
   'common.closeMenu': 'إغلاق القائمة',
   'common.openMenu': 'فتح القائمة',
+  'common.copy': 'نسخ',
+  'common.close': 'إغلاق',
   'profile.manageSettings': 'إدارة إعدادات وتفضيلات حسابك',
   'profile.saveSuccess': 'تم حفظ التغييرات بنجاح.',
   'profile.personalInfo': 'المعلومات الشخصية',
@@ -392,8 +458,37 @@ const ar: TranslationsType = {
   'studies.share': 'مشاركة',
   'studies.preview': 'معاينة',
   'studies.settings': 'إعدادات',
+  'studies.detail.overview': 'نظرة عامة',
+  'studies.detail.participants': 'المشاركين',
+  'studies.detail.responses': 'الإجابات',
+  'studies.detail.notFound': 'الدراسة غير موجودة',
+  'studies.detail.notFoundDesc': 'الدراسة التي تبحث عنها غير موجودة أو تمت إزالتها.',
+  'studies.detail.createdOn': 'تم إنشاؤها في',
+  'studies.detail.lastUpdated': 'آخر تحديث',
+  'studies.detail.status': 'الحالة',
+  'studies.detail.type': 'النوع',
+  'studies.detail.targetParticipants': 'المشاركين المستهدفين',
+  'studies.detail.activityLog': 'سجل النشاط',
+  'studies.detail.completionRate': 'معدل الإكمال',
+  'studies.detail.averageTime': 'متوسط الوقت',
+  'studies.detail.backToProject': 'العودة إلى المشروع',
+  'studies.detail.launchStudy': 'إطلاق الدراسة',
+  'studies.detail.completeStudy': 'إكمال الدراسة',
+  'studies.detail.reactivateStudy': 'إعادة تنشيط',
+  'studies.detail.copyLink': 'نسخ الرابط',
+  'studies.detail.copied': 'تم النسخ!',
+  'studies.detail.invite': 'دعوة المشاركين',
+  'studies.detail.loadingStudy': 'جاري تحميل تفاصيل الدراسة...',
+  'studies.detail.deleteConfirm': 'هل أنت متأكد أنك تريد حذف هذه الدراسة؟ لا يمكن التراجع عن هذا الإجراء.',
+  'studies.detail.progress': 'التقدم',
+  'studies.detail.tasks': 'المهام',
+  'studies.detail.analytics': 'التحليلات',
+  'studies.detail.shareLink': 'مشاركة الرابط',
+  'studies.detail.viewResponses': 'عرض الردود',
+  'studies.detail.exportResults': 'تصدير النتائج',
+  'studies.detail.shareOptions': 'خيارات المشاركة',
 
-  'participants.title': 'المشاركين',
+  'participants.title': 'المشاركون',
   'participants.invite': 'دعوة المشاركين',
   'participants.empty': 'لا يوجد مشاركين حتى الآن',
   'participants.name': 'الاسم',
@@ -406,6 +501,7 @@ const ar: TranslationsType = {
   'participants.tags': 'العلامات',
   'participants.import': 'استيراد المشاركين',
   'participants.export': 'تصدير المشاركين',
+  'participants.total': 'إجمالي المشاركين',
 
   'dashboard.title': 'لوحة التحكم',
   'dashboard.overview': 'نظرة عامة',
@@ -460,7 +556,9 @@ const fr: Partial<TranslationsType> = {
   'common.myAccount': 'Mon compte',
   'common.closeMenu': 'Fermer le menu',
   'common.openMenu': 'Ouvrir le menu',
-  'profile.manageSettings': 'Gérez les paramètres et les préférences de votre compte',
+  'common.copy': 'Copier',
+  'common.close': 'Fermer',
+  'profile.manageSettings': 'Gérer les paramètres',
   'profile.saveSuccess': 'Vos modifications ont été enregistrées avec succès.',
   'profile.personalInfo': 'Informations personnelles',
   'profile.personalInfoDesc': 'Mettez à jour vos informations personnelles et la façon dont les autres vous voient sur la plateforme',
@@ -496,6 +594,20 @@ const fr: Partial<TranslationsType> = {
   'projects.title': 'Projets',
   'projects.create': 'Créer un Projet',
   'projects.empty': 'Pas de projets pour le moment',
+  'studies.detail.deleteConfirm': 'Êtes-vous sûr de vouloir supprimer cette étude? Cette action ne peut pas être annulée.',
+  'studies.detail.progress': 'Progression',
+  'studies.detail.tasks': 'Tâches',
+  'studies.detail.analytics': 'Analytique',
+  'studies.detail.shareLink': 'Partager le lien',
+  'studies.detail.viewResponses': 'Voir les réponses',
+  'studies.detail.exportResults': 'Exporter les résultats',
+  'studies.detail.shareOptions': 'Options de partage',
+  
+  'participants.title': 'Participants',
+  'participants.export': 'Exporter les participants',
+  'participants.total': 'Total des participants',
+  
+  'dashboard.title': 'Tableau de bord',
 };
 
 // Spanish translations (partial)
@@ -538,7 +650,9 @@ const es: Partial<TranslationsType> = {
   'common.myAccount': 'Mi cuenta',
   'common.closeMenu': 'Cerrar menú',
   'common.openMenu': 'Abrir menú',
-  'profile.manageSettings': 'Administre la configuración y las preferencias de su cuenta',
+  'common.copy': 'Copiar',
+  'common.close': 'Cerrar',
+  'profile.manageSettings': 'Administrar configuración',
   'profile.saveSuccess': 'Sus cambios se han guardado correctamente.',
   'profile.personalInfo': 'Información personal',
   'profile.personalInfoDesc': 'Actualice su información personal y cómo lo ven los demás en la plataforma',
@@ -574,6 +688,20 @@ const es: Partial<TranslationsType> = {
   'projects.title': 'Proyectos',
   'projects.create': 'Crear Proyecto',
   'projects.empty': 'No hay proyectos todavía',
+  'studies.detail.deleteConfirm': '¿Estás seguro de que quieres eliminar este estudio? Esta acción no se puede deshacer.',
+  'studies.detail.progress': 'Progreso',
+  'studies.detail.tasks': 'Tareas',
+  'studies.detail.analytics': 'Analítica',
+  'studies.detail.shareLink': 'Compartir enlace',
+  'studies.detail.viewResponses': 'Ver respuestas',
+  'studies.detail.exportResults': 'Exportar resultados',
+  'studies.detail.shareOptions': 'Opciones de compartir',
+  
+  'participants.title': 'Participantes',
+  'participants.export': 'Exportar participantes',
+  'participants.total': 'Total de participantes',
+  
+  'dashboard.title': 'Panel de control',
 };
 
 // Combine all translations

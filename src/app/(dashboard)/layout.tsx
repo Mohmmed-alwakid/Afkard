@@ -26,7 +26,7 @@ import { supabase } from '@/lib/supabase';
 // Mark this component as dynamically rendered to avoid static build issues
 export const dynamic = 'force-dynamic';
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;

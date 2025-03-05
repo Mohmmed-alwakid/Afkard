@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase-browser';
 import { StudyCardSkeleton } from '@/components/ui/skeletons';
 import { Button } from '@/components/ui/button';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { 
   Card, 
   CardContent, 
@@ -41,6 +42,7 @@ interface Study {
   status: 'draft' | 'active' | 'completed' | 'archived';
   created_at: string;
   participant_count: number;
+  project_id: string;
 }
 
 export function ResearcherStudies({ userId }: StudiesProps) {
@@ -60,7 +62,8 @@ export function ResearcherStudies({ userId }: StudiesProps) {
             title, 
             description, 
             status, 
-            created_at
+            created_at,
+            project_id
           `)
           .eq('researcher_id', userId)
           .order('created_at', { ascending: false });
@@ -143,15 +146,17 @@ export function ResearcherStudies({ userId }: StudiesProps) {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {studies.map((study) => (
-        <StudyCard 
-          key={study.id} 
-          study={study} 
-          onStatusChange={handleStatusChange} 
-        />
-      ))}
-    </div>
+    <TooltipProvider>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {studies.map((study) => (
+          <StudyCard 
+            key={study.id} 
+            study={study} 
+            onStatusChange={handleStatusChange} 
+          />
+        ))}
+      </div>
+    </TooltipProvider>
   );
 }
 
@@ -186,12 +191,12 @@ function StudyCard({ study, onStatusChange }: StudyCardProps) {
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href={`/dashboard/studies/${study.id}`}>
+                <Link href={`/projects/${study.project_id}/studies/${study.id}`}>
                   View Details
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href={`/dashboard/studies/${study.id}/edit`}>
+                <Link href={`/projects/${study.project_id}/studies/${study.id}/edit`}>
                   Edit Study
                 </Link>
               </DropdownMenuItem>
@@ -230,7 +235,7 @@ function StudyCard({ study, onStatusChange }: StudyCardProps) {
       </CardContent>
       <CardFooter>
         <Button asChild variant="outline" size="sm" className="w-full">
-          <Link href={`/dashboard/studies/${study.id}`}>
+          <Link href={`/projects/${study.project_id}/studies/${study.id}`}>
             <span>View Study</span>
             <ArrowUpRight className="ml-2 h-4 w-4" />
           </Link>

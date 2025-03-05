@@ -5,7 +5,8 @@ import { redirect, headers } from 'next/navigation';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { ResearcherDashboard } from '@/components/researcher/dashboard';
 import { HomePageClient } from '@/components/dashboard/home-page-client';
-import { UserService, ProjectService, AuthService } from '@/lib/api-services';
+import { UserService, ProjectService } from '@/lib/api-services';
+import { getCurrentUser } from '@/lib/auth';
 
 export const metadata: Metadata = {
   title: 'Dashboard - Afkar',
@@ -19,7 +20,7 @@ export const dynamic = 'force-dynamic';
 export default async function DashboardPage() {
   try {
     // Get current user with robust error handling
-    const { user } = await AuthService.getCurrentUser(true);
+    const { user } = await getCurrentUser();
     
     // Check if user is authenticated
     if (!user || !user.id) {

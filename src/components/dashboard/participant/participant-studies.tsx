@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase-browser';
 import { StudyCardSkeleton } from '@/components/ui/skeletons';
 import { Button } from '@/components/ui/button';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { 
   Card, 
   CardContent, 
@@ -39,6 +40,7 @@ interface Study {
     description: string | null;
     type: 'test' | 'interview';
     researcher_id: string;
+    project_id: string;
     researcher: {
       display_name: string;
     };
@@ -74,6 +76,7 @@ export function ParticipantStudies({ userId, status }: StudiesProps) {
               description,
               type,
               researcher_id,
+              project_id,
               profiles:researcher_id (
                 display_name
               )
@@ -97,8 +100,9 @@ export function ParticipantStudies({ userId, status }: StudiesProps) {
             description: item.studies.description,
             type: item.studies.type,
             researcher_id: item.studies.researcher_id,
+            project_id: item.studies.project_id,
             researcher: {
-              display_name: item.studies.profiles.display_name,
+              display_name: item.studies.profiles?.display_name || 'Researcher',
             },
           },
         })) || [];
@@ -147,11 +151,13 @@ export function ParticipantStudies({ userId, status }: StudiesProps) {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {studies.map((study) => (
-        <StudyCard key={study.id} study={study} isCompleted={status === 'completed'} />
-      ))}
-    </div>
+    <TooltipProvider>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {studies.map((study) => (
+          <StudyCard key={study.id} study={study} isCompleted={status === 'completed'} />
+        ))}
+      </div>
+    </TooltipProvider>
   );
 }
 
@@ -225,7 +231,7 @@ function StudyCard({ study, isCompleted }: StudyCardProps) {
       </CardContent>
       <CardFooter>
         <Button asChild variant="outline" size="sm" className="w-full">
-          <Link href={`/dashboard/studies/${study.study_id}`}>
+          <Link href={`/projects/${study.study.project_id}/studies/${study.study_id}`}>
             <span>{isCompleted ? 'View Results' : 'Continue Study'}</span>
             <ArrowUpRight className="ml-2 h-4 w-4" />
           </Link>

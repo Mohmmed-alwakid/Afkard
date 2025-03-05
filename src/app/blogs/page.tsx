@@ -36,7 +36,7 @@ const blogPosts = [
   {
     id: 2,
     title: 'The Art of User Interviews: Best Practices',
-    excerpt: 'Discover techniques for conducting user interviews that reveal deep insights about your users' needs and behaviors.',
+    excerpt: 'Discover techniques for conducting user interviews that reveal deep insights about your users\' needs and behaviors.',
     category: 'interviews',
     image: '/blog/user-interview.jpg',
     author: 'Michael Chen',

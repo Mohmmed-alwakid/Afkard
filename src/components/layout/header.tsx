@@ -23,7 +23,8 @@ import { useRTL } from '@/hooks/use-rtl';
 const navItems = [
   { name: 'Home', href: '/home' },
   { name: 'Projects', href: '/projects' },
-  { name: 'Participant', href: '/participant' },
+  { name: 'Participants', href: '/participants' },
+  { name: 'Templates', href: '/templates' },
   { name: 'Help&Support', href: '/help' },
 ];
 
@@ -69,7 +70,8 @@ export function Header() {
   const translatedNavItems = [
     { name: t('nav.home'), href: '/home' },
     { name: t('nav.projects'), href: '/projects' },
-    { name: t('nav.participants'), href: '/participant' },
+    { name: t('nav.participants'), href: '/participants' },
+    { name: t('nav.templates'), href: '/templates' },
     { name: t('nav.help'), href: '/help' },
   ];
   

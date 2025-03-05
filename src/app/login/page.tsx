@@ -22,6 +22,48 @@ function LoginContent() {
   // Ref to track if a redirect has been initiated to prevent multiple redirects
   const redirectInitiated = useRef(false);
 
+  // Development mock login function
+  const handleDevLogin = async () => {
+    if (process.env.NODE_ENV !== 'development') return;
+    
+    console.log('Using dev login...');
+    setLoginInProgress(true);
+    
+    try {
+      // Access the setMockUser function from the store
+      const mockUser = {
+        id: 'mock-user-id',
+        email: 'demo@afkar.com',
+        first_name: 'Demo',
+        last_name: 'User',
+        role: 'user',
+        organization: 'Afkar',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      
+      // @ts-ignore - We're directly manipulating the store for dev purposes only
+      useAuthStore.setState({ 
+        user: mockUser,
+        isAuthenticated: true, 
+        isLoading: false,
+        isInitialized: true,
+        lastActive: Date.now()
+      });
+      
+      // Redirect after mock login
+      if (returnUrl && returnUrl.startsWith('/')) {
+        router.push(returnUrl);
+      } else {
+        router.push("/home");
+      }
+    } catch (error) {
+      console.error("Dev login error:", error);
+    } finally {
+      setLoginInProgress(false);
+    }
+  };
+
   // Check if already authenticated and redirect
   useEffect(() => {
     // Prevent executing this effect during SSR
@@ -173,6 +215,19 @@ function LoginContent() {
               </div>
               
               <Social returnUrl={returnUrl} />
+              
+              {process.env.NODE_ENV === 'development' && (
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={handleDevLogin}
+                    className="w-full flex items-center justify-center py-2.5 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                  >
+                    <span className="bg-yellow-200 text-yellow-800 text-xs font-semibold py-1 px-2 rounded-sm mr-2">DEV</span>
+                    Quick Login (Development Only)
+                  </button>
+                </div>
+              )}
               
               <div className="mt-8 text-center">
                 <p className="text-sm text-muted-foreground">
