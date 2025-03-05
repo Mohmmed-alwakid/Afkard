@@ -1,0 +1,22 @@
+<svg width="197" height="143" viewBox="0 0 197 143" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- First person (interviewer) -->
+  <circle cx="60" cy="50" r="20" fill="#212280"/>
+  <rect x="50" y="70" width="20" height="40" rx="3" fill="#212280"/>
+  
+  <!-- Second person (interviewee) -->
+  <circle cx="130" cy="50" r="20" fill="#7C3AED"/>
+  <rect x="120" y="70" width="20" height="40" rx="3" fill="#7C3AED"/>
+  
+  <!-- Speech bubbles -->
+  <path d="M85 40C85 36.6863 87.6863 34 91 34H99C102.314 34 105 36.6863 105 40V48C105 51.3137 102.314 54 99 54H91C87.6863 54 85 51.3137 85 48V40Z" fill="white" stroke="#212280" stroke-width="2"/>
+  <path d="M105 46L112 54" stroke="#212280" stroke-width="2"/>
+  
+  <path d="M85 70C85 66.6863 87.6863 64 91 64H99C102.314 64 105 66.6863 105 70V78C105 81.3137 102.314 84 99 84H91C87.6863 84 85 81.3137 85 78V70Z" fill="white" stroke="#7C3AED" stroke-width="2"/>
+  <path d="M85 74L78 82" stroke="#7C3AED" stroke-width="2"/>
+  
+  <!-- Notes/clipboard -->
+  <rect x="30" y="90" width="30" height="40" rx="2" fill="#F8FAFC" stroke="#212280" stroke-width="2"/>
+  <line x1="38" y1="100" x2="52" y2="100" stroke="#212280" stroke-width="2"/>
+  <line x1="38" y1="110" x2="52" y2="110" stroke="#212280" stroke-width="2"/>
+  <line x1="38" y1="120" x2="52" y2="120" stroke="#212280" stroke-width="2"/>
+</svg> 

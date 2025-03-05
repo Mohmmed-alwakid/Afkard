@@ -8,84 +8,159 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { NewStudyModal } from "@/components/new-study-modal"
 import { useTranslations } from "@/hooks/use-translations"
 import { cn } from "@/lib/utils"
+import { useRouter } from "next/navigation"
 
-export type StudyType = "test" | "interview"
+export type StudyType = "test" | "interview" | "survey"
 
 interface StudyTypeModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  projectId: string
+  onSelect: (type: StudyType) => void
+  projectId?: string
 }
 
 const studyTypes = [
   {
     id: "test" as const,
-    title: "Run Tests",
+    title: "Usability Test",
     description: "Create surveys and usability tests for prototypes and live websites",
-    icon: "/icons/testing.svg",
+    icon: "/illustrations/usability-testing.svg",
+    benefits: [
+      "Observe how users interact with your product",
+      "Identify friction points and usability issues",
+      "Get actionable feedback on user experience",
+    ],
   },
   {
     id: "interview" as const,
-    title: "Conduct Interviews",
+    title: "User Interview",
     description: "Schedule interviews, transcribe recordings, analyze sessions and share insights",
-    icon: "/icons/consultation.svg",
+    icon: "/illustrations/user-interviews.svg",
+    benefits: [
+      "Gain in-depth qualitative insights",
+      "Understand user needs and pain points",
+      "Discover opportunities for improvement",
+    ],
+  },
+  {
+    id: "survey" as const,
+    title: "Survey",
+    description: "Collect quantitative data at scale with customizable surveys",
+    icon: "/illustrations/feedback-survey.svg",
+    benefits: [
+      "Gather feedback from large user groups",
+      "Collect quantitative data for analysis",
+      "Validate hypotheses and measure satisfaction",
+    ],
   },
 ]
 
-export function StudyTypeModal({ open, onOpenChange, projectId }: StudyTypeModalProps) {
+export function StudyTypeModal({ open, onOpenChange, onSelect, projectId }: StudyTypeModalProps) {
   const { t, isRTL } = useTranslations()
-  const [selectedType, setSelectedType] = React.useState<StudyType | null>(null)
+  const [hoveredType, setHoveredType] = React.useState<StudyType | null>(null)
   const [showNewStudyModal, setShowNewStudyModal] = React.useState(false)
+  const [selectedType, setSelectedType] = React.useState<StudyType | null>(null)
+  const router = useRouter()
 
-  const handleTypeSelect = (type: StudyType) => {
+  const handleSelectType = (type: StudyType) => {
     setSelectedType(type)
+    if (projectId) {
+      // If we have a projectId, show the new study modal
+      setShowNewStudyModal(true)
+    } else {
+      // Otherwise, just pass the selection back
+      onSelect(type)
+      onOpenChange(false)
+    }
+  }
+
+  const handleStudyCreated = () => {
+    setShowNewStudyModal(false)
     onOpenChange(false)
-    setShowNewStudyModal(true)
+    if (projectId) {
+      // Navigate to the project detail page
+      router.push(`/projects/${projectId}`)
+    }
   }
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-center mb-6">
-              Choose Study Type
+        <DialogContent className="sm:max-w-[720px] p-6 overflow-hidden">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-2xl font-bold">
+              Select a Study Type
             </DialogTitle>
+            <DialogDescription>
+              Choose the type of study that best fits your research needs
+            </DialogDescription>
           </DialogHeader>
-          <div className={cn(
-            "grid gap-4",
-            isRTL && "rtl"
-          )}>
+
+          <div className="flex flex-col md:flex-row gap-6">
             {studyTypes.map((type) => (
               <motion.div
                 key={type.id}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
+                onMouseEnter={() => setHoveredType(type.id)}
+                onMouseLeave={() => setHoveredType(null)}
+                className="w-full"
               >
                 <Card
-                  variant="interactive"
-                  className="p-6 cursor-pointer"
-                  onClick={() => handleTypeSelect(type.id)}
+                  className={cn(
+                    "relative p-0 cursor-pointer overflow-hidden h-auto bg-white rounded-[24px] border shadow-sm transition-all duration-200",
+                    hoveredType === type.id ? "ring-2 ring-primary shadow-md" : ""
+                  )}
+                  onClick={() => handleSelectType(type.id)}
                 >
-                  <div className="flex items-center gap-6">
-                    <div className="w-16 h-16 rounded-lg bg-primary/5 flex items-center justify-center">
+                  {/* Illustration */}
+                  <div className="w-full p-6 bg-primary/5 flex justify-center">
+                    <div className="w-[110px] h-[110px] relative">
                       <Image
                         src={type.icon}
                         alt={type.title}
-                        width={32}
-                        height={32}
-                        className="dark:invert"
+                        width={110}
+                        height={110}
+                        className="object-contain"
                       />
                     </div>
-                    <div>
-                      <h3 className="text-lg font-semibold mb-1">{type.title}</h3>
-                      <p className="text-sm text-muted-foreground">{type.description}</p>
-                    </div>
+                  </div>
+                  
+                  <div className="p-6 pt-4">
+                    {/* Title */}
+                    <h3 className="font-semibold text-[20px] mb-2 text-black font-['Poppins']">
+                      {type.title}
+                    </h3>
+                    
+                    {/* Description */}
+                    <p className="text-[15px] mb-4 text-[#666675] font-['Poppins'] font-normal">
+                      {type.description}
+                    </p>
+                    
+                    {/* Benefits */}
+                    <ul className="text-[14px] space-y-1 mb-4">
+                      {type.benefits.map((benefit, index) => (
+                        <li key={index} className="flex items-start">
+                          <span className="text-primary mr-2">•</span>
+                          <span className="text-gray-700">{benefit}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    
+                    {/* Button */}
+                    <Button 
+                      className="w-full mt-2 rounded-[32px]"
+                      variant={hoveredType === type.id ? "default" : "outline"}
+                    >
+                      Select {type.title}
+                    </Button>
                   </div>
                 </Card>
               </motion.div>
@@ -94,12 +169,16 @@ export function StudyTypeModal({ open, onOpenChange, projectId }: StudyTypeModal
         </DialogContent>
       </Dialog>
 
-      {selectedType && (
+      {projectId && selectedType && (
         <NewStudyModal
-          open={showNewStudyModal}
-          onOpenChange={setShowNewStudyModal}
-          type={selectedType}
           projectId={projectId}
+          open={showNewStudyModal} 
+          onOpenChange={setShowNewStudyModal}
+          onStudyCreate={(projectId, study) => {
+            onSelect(selectedType);
+            handleStudyCreated();
+          }}
+          initialType={selectedType}
         />
       )}
     </>

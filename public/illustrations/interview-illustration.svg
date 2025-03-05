@@ -1,0 +1,50 @@
+<svg width="136" height="136" viewBox="0 0 136 136" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect x="11.19" y="0" width="113.62" height="136" fill="#FFFFFF" fill-opacity="0.01"/>
+  
+  <!-- Peach colored elements -->
+  <rect x="11.19" y="58.86" width="45.29" height="32.43" fill="#FED2A4"/>
+  <rect x="48.21" y="58.86" width="8.27" height="32.43" fill="#FFBD86"/>
+  
+  <!-- People silhouettes -->
+  <rect x="39.71" y="88.8" width="10.14" height="6.37" fill="#5A5A5A"/>
+  <rect x="28.91" y="103" width="33.06" height="33" fill="#FED2A4"/>
+  <rect x="35.82" y="77.36" width="8.9" height="13.41" fill="#5A5A5A"/>
+  
+  <!-- Yellow elements -->
+  <rect x="28.91" y="109.38" width="33.06" height="26.62" fill="#F4D902"/>
+  <rect x="49.1" y="109.38" width="12.87" height="26.62" fill="#E3CA00"/>
+  <rect x="35.1" y="125.12" width="18.68" height="10.88" fill="#BA9B06"/>
+  
+  <!-- Dark elements - chair/desk -->
+  <rect x="17.68" y="30.67" width="44.72" height="30.75" fill="#3E5959"/>
+  <rect x="44.93" y="30.67" width="17.47" height="30.75" fill="#384949"/>
+  
+  <!-- Green plan/note element -->
+  <rect x="63.43" y="0" width="61.38" height="74.36" fill="#97D729"/>
+  <rect x="84.63" y="0.27" width="40.18" height="74.04" fill="#8BC727"/>
+  
+  <!-- Speech bubbles / dialog indicators -->
+  <ellipse cx="90.67" cy="26.07" rx="2.5" ry="3.4" fill="#FFFFFF"/>
+  <ellipse cx="79.34" cy="26.07" rx="2.5" ry="3.4" fill="#FFFFFF"/>
+  <ellipse cx="102" cy="26.07" rx="2.5" ry="3.4" fill="#FFFFFF"/>
+  
+  <!-- Call/video screen -->
+  <rect x="25" y="30" width="86" height="60" rx="8" fill="#FFFFFF" stroke="#333333" stroke-width="1.5"/>
+  
+  <!-- Video participant windows -->
+  <rect x="30" y="38" width="36" height="30" rx="4" fill="#E0F2FE" stroke="#60B7FF" stroke-width="1"/>
+  <circle cx="48" cy="48" r="8" fill="#FED2A4"/>
+  <path d="M44 54 C44 51 52 51 52 54" stroke="#5A5A5A" stroke-width="1.5"/>
+  
+  <rect x="70" y="38" width="36" height="30" rx="4" fill="#ECF8ED" stroke="#97D729" stroke-width="1"/>
+  <circle cx="88" cy="48" r="8" fill="#FFBD86"/>
+  <path d="M84 54 C84 51 92 51 92 54" stroke="#5A5A5A" stroke-width="1.5"/>
+  
+  <!-- Controls -->
+  <rect x="35" y="76" width="66" height="8" rx="4" fill="#F5F5F5"/>
+  <circle cx="43" cy="80" r="3" fill="#E94444"/>
+  <circle cx="55" cy="80" r="3" fill="#60B7FF"/>
+  <circle cx="67" cy="80" r="3" fill="#97D729"/>
+  <circle cx="79" cy="80" r="3" fill="#ACACAC"/>
+</svg> 

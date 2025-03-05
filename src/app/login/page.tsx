@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -10,8 +10,6 @@ import { SignInForm } from "@/components/auth/signin-form";
 import { Social } from "@/components/auth/social";
 import { Logo } from "@/components/logo";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { siteConfig } from "@/config/site";
-import AfkarLogo from "@/components/common/afkar-logo";
 import Link from "next/link";
 
 // Create a wrapper component that uses useSearchParams
@@ -21,28 +19,85 @@ function LoginContent() {
   const [loginInProgress, setLoginInProgress] = useState(false);
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get("returnUrl") || "";
+  // Ref to track if a redirect has been initiated to prevent multiple redirects
+  const redirectInitiated = useRef(false);
+
+  // Development mock login function
+  const handleDevLogin = async () => {
+    if (process.env.NODE_ENV !== 'development') return;
+    
+    console.log('Using dev login...');
+    setLoginInProgress(true);
+    
+    try {
+      // Access the setMockUser function from the store
+      const mockUser = {
+        id: 'mock-user-id',
+        email: 'demo@afkar.com',
+        first_name: 'Demo',
+        last_name: 'User',
+        role: 'user',
+        organization: 'Afkar',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      
+      // @ts-ignore - We're directly manipulating the store for dev purposes only
+      useAuthStore.setState({ 
+        user: mockUser,
+        isAuthenticated: true, 
+        isLoading: false,
+        isInitialized: true,
+        lastActive: Date.now()
+      });
+      
+      // Redirect after mock login
+      if (returnUrl && returnUrl.startsWith('/')) {
+        router.push(returnUrl);
+      } else {
+        router.push("/home");
+      }
+    } catch (error) {
+      console.error("Dev login error:", error);
+    } finally {
+      setLoginInProgress(false);
+    }
+  };
 
   // Check if already authenticated and redirect
   useEffect(() => {
-    if (isAuthenticated && user && !isLoading) {
-      console.log("🔄 Login page: User already authenticated", { 
-        user: user.email,
-        role: user.role, 
-        isLoading 
-      });
+    // Prevent executing this effect during SSR
+    if (typeof window === 'undefined') return;
 
-      // If there's a return URL, redirect there if it's valid
+    // Skip if we're still loading or a redirect is already in progress
+    if (isLoading || redirectInitiated.current) return;
+    
+    // Debug logging
+    console.log("Auth state check:", { 
+      isAuthenticated, 
+      hasUser: !!user, 
+      email: user?.email,
+      isLoading
+    });
+
+    // Only redirect if authenticated with a user
+    if (isAuthenticated && user) {
+      console.log("🔄 Login page: User authenticated, preparing redirect");
+      
+      // Prevent multiple redirects
+      redirectInitiated.current = true;
+      
+      // If there's a return URL, validate and redirect
       if (returnUrl && returnUrl.startsWith('/')) {
         console.log("🚀 Redirecting to return URL:", returnUrl);
         
-        // CRITICAL FIX: Use window.location.href to avoid ReferenceError
-        window.location.href = returnUrl;
-        return;
+        // Use Next.js router for client navigation
+        router.push(returnUrl);
+      } else {
+        // Redirect to home instead of dashboard
+        console.log("🚀 Redirecting to home page");
+        router.push("/home");
       }
-
-      // CRITICAL FIX: Always redirect to the unified dashboard
-      console.log("🚀 Redirecting authenticated user to the dashboard");
-      window.location.href = "/dashboard";
     }
   }, [isAuthenticated, user, isLoading, returnUrl, router]);
 
@@ -67,13 +122,13 @@ function LoginContent() {
       // If there's a return URL and it's valid, redirect there
       if (returnUrl && returnUrl.startsWith('/')) {
         console.log("🚀 Login successful, redirecting to return URL:", returnUrl);
-        window.location.href = returnUrl;
+        router.push(returnUrl);
         return;
       }
       
-      // CRITICAL FIX: Always redirect to the unified dashboard
-      console.log("🚀 Login successful, redirecting to dashboard");
-      window.location.href = "/dashboard";
+      // CRITICAL FIX: Always redirect to home page after login
+      console.log("🚀 Login successful, redirecting to home page");
+      router.push("/home");
       
     } catch (error) {
       console.error("Login error:", error);
@@ -84,32 +139,56 @@ function LoginContent() {
   };
 
   return (
-    <div className="container relative flex-col items-center justify-center grid lg:max-w-none lg:grid-cols-2 lg:px-0">
-      {/* Image section */}
-      <div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex">
-        <div className="absolute inset-0 bg-primary" />
-        <div className="relative z-20 flex items-center text-lg font-medium">
-          <Logo />
-        </div>
-        <div className="relative z-20 mt-auto">
-          <blockquote className="space-y-2">
-            <p className="text-lg text-white">
-              "Afkar has completely transformed how we conduct research studies. The platform's intuitive interface and powerful analytics have significantly improved our efficiency and participant engagement."
+    <div className="flex min-h-screen w-full">
+      {/* Left Section - Brand & Image */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary to-primary-foreground">
+        <div className="flex flex-col items-center justify-center w-full p-12 text-white">
+          <div className="mb-8">
+            <Image 
+              src="/logos/afkar-logo-white.svg" 
+              alt="Afkar" 
+              width={180} 
+              height={60}
+              className="w-auto h-12"
+            />
+          </div>
+          
+          <div className="max-w-md text-center">
+            <h2 className="text-4xl font-bold mb-6">Welcome to Afkar</h2>
+            <p className="text-lg mb-12">
+              The platform connecting researchers and participants for meaningful studies and valuable insights.
             </p>
-            <footer className="text-sm">Dr. Ibrahim Al-Mansour</footer>
-          </blockquote>
+            
+            <div className="mt-12 p-6 bg-white/10 backdrop-blur-sm rounded-lg">
+              <blockquote className="italic text-white/90">
+                "Afkar has transformed our research process, making participant recruitment and data collection seamless and efficient."
+              </blockquote>
+              <div className="mt-4 font-medium">Dr. Ahmed Al-Farsi</div>
+              <div className="text-sm text-white/70">Lead Researcher, Innovation Institute</div>
+            </div>
+          </div>
         </div>
       </div>
       
-      {/* Login form section */}
-      <div className="lg:p-8">
-        <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
-          <div className="flex flex-col space-y-2 text-center">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Welcome back
+      {/* Right Section - Login Form */}
+      <div className="flex flex-col items-center justify-center w-full lg:w-1/2 p-8">
+        <div className="w-full max-w-md">
+          <div className="mb-8">
+            <Link href="/" className="block lg:hidden mb-8">
+              <Image 
+                src="/logos/afkar-logo.svg" 
+                alt="Afkar" 
+                width={150} 
+                height={40}
+                className="w-auto h-10"
+              />
+            </Link>
+            
+            <h1 className="text-2xl font-bold tracking-tight">
+              Sign in to your account
             </h1>
-            <p className="text-sm text-muted-foreground">
-              Enter your credentials to sign in to your account
+            <p className="mt-2 text-muted-foreground">
+              Enter your credentials to access your account
             </p>
           </div>
           
@@ -124,7 +203,7 @@ function LoginContent() {
             <>
               <SignInForm onSubmit={onSubmit} returnUrl={returnUrl} />
               
-              <div className="relative">
+              <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center">
                   <Separator className="w-full" />
                 </div>
@@ -137,21 +216,43 @@ function LoginContent() {
               
               <Social returnUrl={returnUrl} />
               
-              <p className="px-8 text-center text-sm text-muted-foreground">
+              {process.env.NODE_ENV === 'development' && (
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={handleDevLogin}
+                    className="w-full flex items-center justify-center py-2.5 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                  >
+                    <span className="bg-yellow-200 text-yellow-800 text-xs font-semibold py-1 px-2 rounded-sm mr-2">DEV</span>
+                    Quick Login (Development Only)
+                  </button>
+                </div>
+              )}
+              
+              <div className="mt-8 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Don't have an account?{" "}
+                  <Link href="/signup" className="text-primary font-medium hover:underline">
+                    Sign up
+                  </Link>
+                </p>
+              </div>
+              
+              <p className="mt-6 px-8 text-center text-xs text-muted-foreground">
                 By clicking continue, you agree to our{" "}
-                <a
+                <Link
                   href="/terms"
                   className="underline underline-offset-4 hover:text-primary"
                 >
                   Terms of Service
-                </a>{" "}
+                </Link>{" "}
                 and{" "}
-                <a
+                <Link
                   href="/privacy"
                   className="underline underline-offset-4 hover:text-primary"
                 >
                   Privacy Policy
-                </a>
+                </Link>
                 .
               </p>
             </>
@@ -165,10 +266,12 @@ function LoginContent() {
 // Wrap with Suspense in the main export component
 export default function LoginPage() {
   return (
-    <div className="container relative flex h-screen flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0">
-      <Suspense fallback={<LoadingSpinner className="h-8 w-8" />}>
-        <LoginContent />
-      </Suspense>
-    </div>
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-screen">
+        <LoadingSpinner className="h-8 w-8" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 } 

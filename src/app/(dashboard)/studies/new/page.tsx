@@ -1,28 +1,29 @@
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { createServerClient } from '@/lib/supabase-server';
 import { CreateStudyForm } from '@/components/studies/create-study-form';
 import { Suspense } from 'react';
 import { apiService } from '@/lib/api-services';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getCurrentUser } from '@/lib/auth';
 
 export const metadata: Metadata = {
   title: 'Create Study | Afkar',
   description: 'Create a new study to collect valuable insights from users',
 };
 
+// Force dynamic rendering to prevent build-time auth errors
+export const dynamic = 'force-dynamic';
+
 async function NewStudyContent() {
-  const supabase = createServerClient();
+  // Get the current user
+  const { user } = await getCurrentUser();
   
-  // Get the current session
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!session) {
+  if (!user) {
     redirect('/login');
   }
   
   // Get user profile to check role
-  const userProfileResult = await apiService.getUserProfile(session.user.id, true);
+  const userProfileResult = await apiService.getUserProfile(user.id, true);
   if (!userProfileResult.data || userProfileResult.error) {
     redirect('/login');
   }
@@ -35,17 +36,17 @@ async function NewStudyContent() {
   }
   
   // Get user projects
-  const userProjectsResult = await apiService.getUserProjects(session.user.id, true);
+  const userProjectsResult = await apiService.getUserProjects(user.id, true);
   const userProjects = userProjectsResult.data || [];
   
   // If no projects exist, redirect to create a project first
   if (userProjects.length === 0) {
-    redirect('/projects/new?redirectAfter=studies/new');
+    redirect('/dashboard/projects/new?redirectAfter=studies/new');
   }
   
   return (
     <CreateStudyForm
-      userId={session.user.id}
+      userId={user.id}
       userProjects={userProjects.map(project => ({
         id: project.id,
         title: project.title

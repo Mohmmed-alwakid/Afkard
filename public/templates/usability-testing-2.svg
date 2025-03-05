@@ -1,0 +1,20 @@
+<svg width="240" height="160" viewBox="0 0 240 160" xmlns="http://www.w3.org/2000/svg">
+  <rect width="240" height="160" fill="#E2E8F0"/>
+  <rect x="20" y="20" width="200" height="120" rx="4" fill="#F1F5F9"/>
+  
+  <!-- Device Frame -->
+  <rect x="70" y="40" width="100" height="70" rx="4" fill="#CBD5E1"/>
+  <rect x="75" y="45" width="90" height="60" rx="2" fill="#3E4C94"/>
+  
+  <!-- Test Elements -->
+  <rect x="85" y="55" width="70" height="10" rx="2" fill="white" fill-opacity="0.7"/>
+  <rect x="85" y="75" width="40" height="10" rx="2" fill="white" fill-opacity="0.7"/>
+  <circle cx="95" cy="95" r="8" fill="#7A9CFF"/>
+  
+  <!-- User Testing Indicator -->
+  <circle cx="165" cy="45" r="5" fill="#FF0000"/>
+  
+  <!-- Hand Cursor -->
+  <circle cx="150" cy="95" r="5" fill="#94A3B8"/>
+  <line x1="150" y1="95" x2="155" y2="90" stroke="#94A3B8" stroke-width="2"/>
+</svg> 

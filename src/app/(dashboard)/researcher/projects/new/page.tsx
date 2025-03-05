@@ -9,6 +9,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/store/auth-store';
 import { supabase } from '@/lib/supabase';
 
+// Force dynamic rendering to prevent static build errors with auth
+export const dynamic = 'force-dynamic';
+
 export default function NewProjectPage() {
   const router = useRouter();
   const { toast } = useToast();

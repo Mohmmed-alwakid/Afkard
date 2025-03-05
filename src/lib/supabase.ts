@@ -201,11 +201,17 @@ export const storage = {
 export const auth = {
   getSession: cache(async () => {
     try {
+      // During static build, this might not be available
+      if (process.env.NEXT_PHASE === 'phase-production-build') {
+        console.warn('Supabase session requested during build phase - returning null session');
+        return { data: { session: null }, error: null };
+      }
+
       const { data: { session }, error } = await supabase.auth.getSession()
-      if (error) throw error
-      return session
+      return { data: { session }, error }
     } catch (error) {
-      handleAuthError(error)
+      console.error('Error getting session:', error);
+      return { data: { session: null }, error: error as Error };
     }
   }),
 

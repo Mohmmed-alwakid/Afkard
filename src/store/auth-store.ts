@@ -121,6 +121,37 @@ export const useAuthStore = create<AuthState>()(
         if (refreshInterval) clearInterval(refreshInterval);
       };
 
+      // DEVELOPMENT ONLY: Set mock user for testing
+      const setMockUser = () => {
+        console.log('Setting mock user for development');
+        const mockUser: User = {
+          id: 'mock-user-id',
+          email: 'demo@afkar.com',
+          first_name: 'Demo',
+          last_name: 'User',
+          role: 'user',
+          organization: 'Afkar',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        
+        set({ 
+          user: mockUser,
+          isAuthenticated: true, 
+          isLoading: false,
+          isInitialized: true,
+          lastActive: Date.now()
+        });
+        
+        return { success: true, user: mockUser };
+      };
+
+      // DEVELOPMENT ONLY: Auto-login for development if needed
+      if (process.env.NODE_ENV === 'development') {
+        // Uncomment the next line to enable auto-login in development
+        // setTimeout(setMockUser, 1000);
+      }
+      
       // Function to start session monitoring
       const startSessionMonitoring = () => {
         clearIntervals();
